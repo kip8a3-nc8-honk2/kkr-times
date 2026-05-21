@@ -1,0 +1,1821 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kakuro Time</title>
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- <link rel="stylesheet" href="style_v0.1_update_v0.7.css"> -->
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 20px;
+      padding-bottom: 120px;
+    }
+
+    h2 {
+      margin-bottom: 0;
+    }
+
+    .version {
+      margin-top: 2px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: gray;
+    }
+    
+    #kakuro-board {
+      display: grid;
+      grid-template-columns: repeat(13, 40px);
+      grid-template-rows: repeat(10, 40px);
+      gap: 2px;
+    }
+
+    .grid { 
+      display: grid; 
+      /*grid-template-columns: repeat(13, 40px); 
+      gap: 2px;*/ 
+      grid-template-columns: repeat(13, 44px); 
+      gap: 3px; 
+    }
+    .cell {
+      /*width: 40px; 
+      height: 40px;*/ 
+      width: 44px; 
+      height: 44px; 
+      border: 1px solid #aaa;
+      text-align: center; 
+      vertical-align: middle; 
+      font-size: 12px;
+      position: relative; 
+      user-select: none; 
+      overflow: hidden;
+    }
+    .cell.selected { 
+      /* border: 2px solid rgb(214, 20, 221);  */
+      /* outline-offset: -6px;         枠の内側に寄せる（調整用） */
+      box-shadow: 0 0 0 2px rgb(214, 20, 221);
+      /* background-color: lightpink; */
+    }
+    .cell span { 
+      display: inline-block; 
+      /*font-size: 12px; */
+      font-size: 14px; 
+    }
+    .confirmed { 
+      font-size: 20px; 
+      color: red; 
+    }
+    .cell span.fixed {
+      font-size: 20px;
+      /* color: black; */
+    }
+    .fixed { 
+      /*font-size: 20px; */
+      font-size: 22px; 
+      color: black; 
+    }
+
+    .black { 
+    color: black;
+    }
+
+    .white { 
+    color: white;
+    }
+
+    .gray { 
+      color: #ccc;
+    }
+
+    /* assyne number */
+    .red {    
+      color: red;
+    }
+
+    /* assyne candidate */
+    .cyan { 
+      /* color: #18e606; */
+      background-color: cyan;
+    }
+
+    .cell.clue {
+      position: relative;
+      background-color: black;
+      /*width: 42px;
+      height: 42px;*/
+      width: 46px;
+      height: 46px;
+      box-sizing: border-box;
+    }
+
+    .cell .slash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, transparent 49%, white 50%, transparent 51%);
+    }
+
+    .cell .clue-right {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      color: white;
+      font-size: 14px;
+    }
+
+    .cell .clue-down {
+      position: absolute;
+      bottom: 2px;
+      left: 4px;
+      color: white;
+      font-size: 14px;
+    }
+
+    /* .keypad {
+      display: none;
+    } */
+
+    /* .board-wrapper {
+      overflow: auto;
+      height: calc(100vh - 60px);
+    } */
+
+    /* .mode-bar {
+      position: fixed;
+      bottom: 0;
+      height: 60px;
+      width: 100%;
+    } */
+
+    .popup {
+      position: fixed;
+      /* position: absolute; */
+      background: white;
+      /* border: 2px solid #444;
+      border-radius: 10px;
+      padding: 10px; */
+      border: 2px solid #444;
+      border-radius: 8px;
+      /* padding: 6px; */
+      padding: 6px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      z-index: 20;   /* ← これを上にする */
+      /* z-index: 1000; */
+      /*z-index: 9999;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow: auto;     */ 
+    }
+
+    .popup button {
+      width: 32px;
+      height: 32px;
+      /* margin: 3px;
+      font-size: 16px; */
+      margin: 1px;
+      font-size: 14px;
+      /*border-radius: 50%;*/
+      touch-action: manipulation;
+    }
+
+    .popup button.fix {
+      background-color: #4da6ff;
+      color: white;
+    }
+    
+
+    .popup button.fix {
+      background-color: #e4d619;
+    }
+
+    .popup button.black {
+      /* background-color: #ccc; */
+      background-color: #8e9efa;
+      /*border-radius: 50%;*/
+    }
+
+    .popup button.gray {
+      /* background-color: #ccc; */
+      background-color: #888686;
+    }
+    
+    .popup button.cyan {
+      background-color: cyan;
+    }
+
+    .popup button.red {
+      background-color: #f556567a;
+    }
+
+    .popup button.white {
+      background-color: #e7e2e2d5;
+    }
+
+    .popup-tools {
+      margin-top: 8px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .popup-tools button {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .popup-tools button.active {
+      background-color: #4da6ff;
+      color: white;
+    }
+
+    .popup-modes button {
+      background-color: #eee;
+    }
+
+    .popup-modes button.active-mode {
+      background-color: #4caf50;
+      color: white;
+    }    
+
+    .popup-modes button.active-mode-sub {
+      background-color: #f38620;
+      color: white;
+    }  
+
+    
+    .hidden {
+      display: none;
+    }
+
+    button {
+      touch-action: manipulation;
+    }
+
+    .hint-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      /* background: rgba(0,0,0,0.5); */
+      background: transparent;
+      /* border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3); */ 
+      pointer-events: none;
+    }
+
+    .hint-content {
+      /* position: relative; */
+      position: absolute;
+      background: white;
+      border: 1px solid #444;
+      padding: 2px;
+      /* margin: 80px auto; */
+      right: 10px;   /* ← 右に寄せる */
+      top: 60px;     /* ← 上からの位置（調整OK） */
+      width: 140px;
+      border-radius: 6px;
+      font-size:14px;
+      pointer-events: auto;
+      z-index: 10;
+      touch-action: none;  /* スクロール干渉防止 */
+    }
+
+    .hint-close {
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      font-size: 18px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    #topBar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;     /* ← 明示的に追加 */
+     /* overflow-x: auto;      /* ← はみ出したらスクロール */
+    }
+
+    #topControls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;     /* ← 明示的に追加 */
+      /* font-size: 8px; */
+     /* overflow-x: auto;      /* ← はみ出したらスクロール */
+    }
+
+    .hint-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .hint-space {
+      display: inline-block;
+      width: 30px; 
+    }
+
+    .infile-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .infile-space {
+      display: inline-block;
+      width: 10px; 
+    }
+    
+  </style>
+</head>
+<body>
+  <h2>Kakuro Time</h2>
+  <div class="version">v6.8</div>
+  
+  <div id="topControls" style="white-space: nowrap;">
+
+     Puzzle No.:
+    <select id="puzzleSelect">
+    </select>
+    <button onclick="loadSelectedPuzzle()">Load</button>
+
+    <span class="infile-space"></span>
+    <input type="file" id="jsonFileInput" accept=".json"><br><br></span>
+  </div>
+
+
+  <div id="topBar">
+    <button onclick="checkCompletion()">Complete?</button>  
+    <button onclick="downloadGameState()">Save</button>
+    <input type="file" id="loadFile" accept=".json" style="display: none;" onchange="uploadGameState(event)">
+    <button onclick="document.getElementById('loadFile').click()">Recovery</button>
+
+    <span class="hint-space"></span>
+    <span class="hint-group"></span>
+      Hint:
+      <span>Sum</span>
+      <select id="hintSum"></select>
+      
+      <span>Len</span>
+      <select id="hintLength"></select>
+    
+      <button id="hintShowBtn">Show</button>
+   
+    </span>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <!--マージした時に追加したもの！必要か？  -->
+  <div id = "board"></div>
+
+  <div id="cellPopup" class="popup hidden">
+      <div class="popup-numbers"></div>
+      <div class="popup-modes"></div>
+  </div>
+
+  <!-- ヒントポップアップ -->
+  <div id="hintPopup" class="hint-popup" style="display:none;">
+    <div class="hint-content">
+      <span class="hint-close" onclick="closeHintPopup()">×</span>
+      
+      <div id="hintResult"></div>
+
+    </div>
+  </div>
+
+
+  <script>
+
+    //alert("JS動いてます");
+    const grid = document.getElementById("grid");
+    let selectedCell = null;
+    let isAssumeMode = false;
+    let isAssumeCyan = false;
+    let isSlash = false;
+    let savedState = {};
+    let assumedChanges = [];
+    let uploadCyan = [];
+    let undoStack = [];
+    let selectedPuzzleNo = null;
+    let boardWidth = null; 
+    let boardHeight = null;
+    let isDragging = false;
+    // let usePopup = true;       // ← 今はデバッグ用にtrue固定
+    let currentMode = "input";
+    let isCandidateMode = false;
+    let selectedAssume = null;
+    let isInputMode = true;
+    let isConfirmMode = false;
+    let isCopyMode = false;
+    let beforeMode = "input";
+    let allpuzzle = {};
+    let numallpuzzle;
+    let allpuzzlekey;
+    let puzzle;
+    let puzzleData = null;
+
+
+    // =====================================================================
+    // ** PCとスマホ共通 **                             
+    // =====================================================================
+
+    //------------------------------------------------
+    // 数値をマス上に表示   
+    function handleNumber(num) {
+
+      const span = document.createElement("span");
+      //span.textContent = e.key;
+      span.textContent = String(num);
+      span.classList.add("black");
+      selectedCell.appendChild(span);
+
+    }
+
+
+    //------------------------------------------------
+    // DELETまたはBackspaceによる削除処理 
+    function handleDelete() {
+
+        const spans = selectedCell.querySelectorAll("span");
+        if (spans.length > 0) spans[spans.length - 1].remove();
+    
+    }
+
+
+    //------------------------------------------------
+    // CTRL＋Cによるコピー処理 
+    function handleCopy() {
+
+      const selected = document.querySelector('.cell.selected');
+
+      if (selected) {
+        // マス内の候補<span>をすべてコピー
+        copiedCandidates = Array.from(selected.querySelectorAll('span')).map(span => ({
+          value: span.textContent,
+          className: span.className
+        }));
+      }
+
+    }   
+    
+
+    //------------------------------------------------
+    // CTRL＋Vによるペースト処理 
+    function handlePaste() {
+
+      const selected = document.querySelector('.cell.selected');
+      if (selected && copiedCandidates) {
+        selected.innerHTML = ''; // 現在の候補を削除
+        for (let data of copiedCandidates) {
+          const span = document.createElement('span');
+          span.textContent = data.value;
+          span.className = data.className;
+          selected.appendChild(span);
+        }
+      }
+    }
+
+
+
+    //------------------------------------------------
+    // 仮定モード中の数字クリック処理（黒⇔水色）
+    function numberAssumeMode(span) {
+
+
+      // 仮定モード中の処理
+      if (span.classList.contains("red") || span.classList.contains("gray") ) {
+        ;
+      } else if (span.classList.contains("cyan")) {
+
+        toggleGrayAssumeMode(span);
+        saveUndo("toggle", span);
+        span.classList.replace("cyan","black");
+      } else {
+        
+        toggleGrayAssumeMode(span);
+        saveUndo("toggle", span);
+        span.classList.replace("black","cyan");         
+      }
+    }
+
+
+    //------------------------------------------------
+    // 仮定モードONとなる数字クリック処理（黒⇔赤）
+    function numberAssumeModeON(span) {
+
+      //  仮定モードON
+      //　盤面全体をメモリ上へ一時保存
+      saveBoardState();
+      // inAssumeMode = true;
+      
+      //e.target.classList.replace("black","red");
+
+      // toggleGrayAssumeMode(e);
+      // saveUndo("toggle", e);
+      toggleGrayAssumeMode(span);
+      saveUndo("toggle", span);
+
+      // e.target.classList.replace("black","red");
+      span.classList.replace("black","red");
+      isAssumeMode = true;
+      isInputMode = false;
+
+
+    }
+
+    //------------------------------------------------
+    // 仮定モードOFFとなる数字クリック処理（赤⇔黒）
+    function numberAssumeModeOFF(span) {
+      
+      // if (span.classList.contains("red")) {
+        // saveUndo("toggle", e);
+        saveUndo("toggle", span);
+        span.classList.replace("red","black");
+        // 仮定モードONにする前の状態に戻す。
+        revertAssumeChanges();
+        // inAssumeMode = false;
+        // clearHypothetical();
+        //読み込んだ時に仮定モードになっていた場合、水色の所を黒に戻す。
+        if (isAssumeCyan) {
+          revertLoadCyanChange();
+          // isAssumeCyan = false;
+        }
+        // isAssumeMode = false;
+        // isInputMode = true;
+      // }
+
+    }    
+
+
+    //------------------------------------------------
+    // 候補モード(通常モード)中の数字クリック処理（黒⇔灰色）
+    function numberCandidateMode(span) {
+
+      isInputMode = true;
+      saveUndo("toggle", span);
+      if (span.classList.contains("black")) {
+        span.classList.replace("black","gray"); 
+      } else if (span.classList.contains("gray")) {
+        span.classList.replace("gray","black");           
+      }
+            
+    }
+
+
+
+    // =====================================================================
+    // ** スマホ版関連（ポップアップ） **                             
+    // =====================================================================
+
+    //------------------------------------------------
+    // ポップアップクローズ
+    function closePopup() {
+      document.getElementById("cellPopup")
+              .classList.add("hidden");
+      // selectedCell.classList.remove("selected");
+      if (selectedCell) selectedCell.classList.remove("selected");
+
+    }
+
+
+    //------------------------------------------------
+    // ポップアップ表示
+    function openPopup(div, event) {
+      const popup = document.getElementById("cellPopup");
+      const spans = div.querySelectorAll("span");
+      const popupWidth = 200;
+      const popupHeight = 250;
+
+      let html = "";
+      // let finalNumbers = [];
+      // let candidateNumbers = [];
+      let fixNumbers = [];
+      let blackNumbers = [];
+      let grayNumbers = [];
+      let cyanNumbers = [];
+      let redNumbers = [];
+      let whiteNumbers = [];
+      let displayValue = "";
+
+      if (!usePopup) return;
+
+      // updateModeButtons();
+
+      spans.forEach(span => {
+        const value = span.textContent;
+
+        displayValue += span.textContent;  
+        
+      });
+    
+      popup.classList.remove("hidden");
+      updatePopupNumbers(div);
+
+      
+      // 位置は更新するが消さない
+      let left = event.clientX;
+      let top = event.clientY - popupHeight;
+
+      if (left + popupWidth > window.innerWidth) {
+        left = window.innerWidth - popupWidth - 10;
+
+      }
+    
+
+      if (top < 0) {
+        top = 10;
+      }
+      
+      popup.style.left = left + "px";
+      popup.style.top = top + "px";
+
+    }
+
+    
+    //------------------------------------------------
+    // ポップアップモード見た目反映
+    function updateModeButtons() {
+
+      const buttons = document.querySelectorAll(".popup-modes button");
+
+      buttons.forEach(btn => {
+        btn.classList.remove("active-mode");
+
+        if (btn.dataset.mode === currentMode) {
+          btn.classList.add("active-mode");
+        } else {
+          btn.classList.remove("active-mode");
+          btn.classList.remove("active-mode-sub");
+        }
+
+        if ((btn.dataset.mode == "confirm") &&
+            ((currentMode == "input") || (currentMode == "candidate"))) {
+          btn.classList.remove("active-mode");
+          btn.classList.add("active-mode-sub");
+        }
+
+        // if (btn.dataset.mode === currentMode) {
+        //   btn.classList.add("active-mode");
+        // }
+      });      
+      
+    }
+    
+
+    //------------------------------------------------
+    // ポップアップ選択によるモード状態true/false
+    function setIsMode(isin, iscan, isassu, iscop) {
+      
+      isInputMode = isin;
+      isCandidateMode = iscan;
+      isAssumeMode = isassu;
+      isCopyMode = iscop; 
+
+    }
+
+    //------------------------------------------------
+    // ポップアップ選択によるモード切替
+    function setMode(mode) {
+      // window.inputMode = mode;
+      let subMode = null;
+
+      // if ((mode == "undo") || (mode == "copy")) {
+      //   beforeMode = currentMode;        
+      // }
+
+      if (selectedAssume) {
+        if ((mode == "candidate") || (mode == "input") || (mode == "copy") || (mode == "paste")) {
+          return;
+        }
+      }
+
+      if (mode == "confirm") {
+        subMode = "confirm";
+      } else {
+        currentMode = mode;
+      }
+      
+      if (currentMode == "input") {
+        // if (!isAssumeMode) {
+        if (!selectedAssume) {
+          setIsMode(true, false, false, false);
+        }       
+      }
+      if (currentMode == "candidate"){
+        // if (!isAssumeMode) {
+        if (!selectedAssume) {
+          setIsMode(false, true, false, false);
+        }
+      }
+      if (currentMode == "assume") {
+        if (!isAssumeMode) {
+          selectedAssume = null;
+        }
+        setIsMode(false, false, true, false);
+      } 
+      if ((subMode == "confirm") && (currentMode != "assume")) {
+        const span = selectedCell;
+        saveUndo("confirm", span);
+        confirmCell(selectedCell);
+        updatePopupNumbers(selectedCell);
+      }
+      if (currentMode == "copy") {
+        if (!isAssumeMode){  
+          setIsMode(false, false, false, true);
+          handleCopy();
+        }  
+      }
+      if (currentMode == "paste") {
+        if (isCopyMode) {
+          handlePaste();
+          updatePopupNumbers(selectedCell);
+        }
+      }
+      if (currentMode == "undo") {
+        undo(); 
+        updatePopupNumbers(selectedCell);    
+      }
+      
+      // currentMode = beforeMode;
+      updateModeButtons();
+    }
+
+
+    //------------------------------------------------
+    // ポップアップモードエリア
+    function initPopupModes() {
+      const modeArea = document.querySelector(".popup-modes");
+
+      modeArea.innerHTML = `
+        <button data-mode="input">入</button>
+        <button data-mode="candidate" >候</button>
+        <button data-mode="assume">仮</button>
+        <button data-mode="confirm">確</button>
+        <button data-mode="copy">コ</button>
+        <button data-mode="paste">ペ</button>
+        <button data-mode="undo">戻</button>
+      `;
+      
+      // ポップアップモードボタンクリック時の処理
+      initModeButtons();
+ 
+    }
+    
+    
+    //------------------------------------------------
+    // ポップアップモードボタンクリック時の処理    
+    function initModeButtons(){
+
+      document.querySelectorAll(".popup-modes button").forEach(btn => {
+      
+        btn.addEventListener("click", function(e){
+          e.stopPropagation();
+          setMode(this.dataset.mode);
+
+        });
+
+      });
+    }
+
+
+    //------------------------------------------------
+    //　ポップアップ数値更新
+    function updatePopupNumbers(div) {
+      
+      const numberArea = document.querySelector(".popup-numbers");
+      const spans = div.querySelectorAll("span");
+
+      let fixNumbers = [];
+      let blackNumbers = [];
+      let grayNumbers = [];
+      let cyanNumbers = [];
+      let redNumbers = [];
+      let whiteNumbers = [];
+
+      // spanを見て、マスに設定されている数値を取得し、candidateNumbersに設定①
+      spans.forEach(span => {
+        const value = span.textContent;
+
+        if (span.classList.contains("fixed")) {
+          fixNumbers.push(value);
+        } else if (span.classList.contains("black")) {
+          blackNumbers.push(value);     
+        } else if (span.classList.contains("gray")) {
+          grayNumbers.push(value);       
+        } else if (span.classList.contains("cyan")) {
+          cyanNumbers.push(value);
+        } else if (span.classList.contains("red")){
+          redNumbers.push(value);
+        } else if (span.classList.contains("white")){
+          whiteNumbers.push(value);
+        }
+
+      });
+
+
+      //  ポップアップ上に数値を表示
+      numberArea.innerHTML = "";
+      // ①のcandidateNumersに設定済の数値のボタンに対し、classNameをcandidateと設定。これにより、ボタンが濃い色で表示
+      for (let i = 1; i <= 9; i++) {
+        const btn = document.createElement("button");
+
+        let className = "";
+
+        if (fixNumbers.includes(String(i))) {
+          className = "fix";
+        }
+        else if (blackNumbers.includes(String(i))) {
+          className = "black";
+        }
+        else if (grayNumbers.includes(String(i))) {
+          className = "gray";
+        }
+        else if (cyanNumbers.includes(String(i))) {
+          className = "cyan";
+        }
+        else if (redNumbers.includes(String(i))) {
+          className = "red";
+        }
+        else if (whiteNumbers.includes(String(i))) {
+          className = "white";
+        }
+
+
+        btn.className = className;
+        btn.textContent = i;     // 数値ボタンにiを設定
+        
+        btn.onclick = function(event) {       
+          // event発生時のみ実行される。
+          // ここは、数値ボタンを押した時のevent発生時（この関数のここ）
+          // →関数selectNumber→関数updatePopup→再度updatePopupNumbers（この関数）と2回呼ばれる。
+          // 2回目は、ポップアップの数値の再表示だけの処理なので、イベントは発生していないため、ここはスキップされる
+          // console.log("i="+i+"    event.target="+event.target); 
+          selectNumber(i);
+          
+          event.stopPropagation();
+        };
+
+        numberArea.appendChild(btn);  // ボタンエリアに数値ボタンを設定。
+      }
+    }    
+
+
+    //------------------------------------------------
+    // ポップアップのUPDATE   
+    function updatePopup(div) {
+      const popup = document.getElementById("cellPopup");
+      const spans = div.querySelectorAll("span");
+
+      updatePopupNumbers(div);
+
+    }
+
+
+   //------------------------------------------------
+   // ポップアップ数値選択時の処理   
+    function selectNumber(num) {
+
+      if (!window.currentPopupCell) return;
+
+      const div = window.currentPopupCell;
+
+      // 既にその数字があるか？
+      const spans = div.querySelectorAll("span");
+      let found = false;
+
+      if ((currentMode == "copy") || (currentMode =="paste") || currentMode == "undo") return;
+
+      spans.forEach(span => {
+        if (span.textContent == num) {
+
+          if (isCandidateMode) {
+            // 候補モード：　black <-> gray
+            numberCandidateMode(span);
+          } else if (isAssumeMode) {
+            if (!selectedAssume) {
+              //　仮定の数値未選択の場合（1つ目に選んだ数値が仮定の値）
+              if (span.classList.contains("black")) {
+                selectedAssume = span;
+                // 仮定モードON:　black -> red
+                numberAssumeModeON(span);
+              }
+              
+            } else {
+              if (span.classList.contains("red")) {
+                // 仮定モードOFF：　red -> black
+                numberAssumeModeOFF(span);
+                selectedAssume = null;
+              } else {
+                // 仮定モード候補：　black <-> cyan
+                numberAssumeMode(span);
+              }
+            }
+          } else if (isInputMode) {
+            span.remove();  // 既にあれば削除（トグルOFF）
+            div.innerHTML = div.innerHTML;
+
+          }
+
+          found = true;
+        }
+      });
+
+      if (!found) {
+        if (currentMode != "assume") {
+        // 数値をマス上に表示
+          handleNumber(num); 
+        }
+      } 
+
+      // ポップアップの数値表示更新
+      updatePopup(div);
+
+    }
+
+
+    // =====================================================================
+    // ** PC版関連 （まだ整理が必要）**                             
+    // =====================================================================
+
+    //------------------------------------------------
+    // クリック時の処理（数値、マス）
+    function selectCell(div, e) {
+
+      const cell = e.target.closest('.cell');
+      if ((cell != selectedCell)) {
+
+        //　マス選択
+        if (selectedCell) selectedCell.classList.remove("selected");
+        if (div.classList.contains("clue")) {
+          selectedCell = null;
+          return;
+        }
+        selectedCell = div;
+        div.classList.add("selected");
+
+      } else {
+        //　マス選択
+        if (e.altKey) {
+          // 確定
+          // saveUndo("confirm", e);
+          const span = e.target;
+          saveUndo("confirm", span);
+          confirmCell(div);
+          return;
+        }
+
+        // 数値クリック時の処理
+        toggleGray(e);    
+      }
+
+      //マスが選択された場合に実行
+      window.currentPopupCell = div;
+      if (usePopup) {
+        openPopup(div, e);
+      }
+
+    }
+
+
+    //------------------------------------------------
+    // 数値クリック時の処理
+    function toggleGray(e) {
+
+      if (e.target.tagName === "SPAN") {
+        const span = e.target;
+
+        if  (span.classList.contains("white")) return;
+
+        // // ALT+クリック　確定
+        if (e.shiftKey) {
+          // Shift+クリック　仮定モードON/OFF
+          if (isAssumeMode){
+            if (span.classList.contains("red")) {
+              // 仮定モードOFF：　red -> black
+              numberAssumeModeOFF(span);
+            }
+          } else {
+            // //  仮定モードON：black -> red
+            numberAssumeModeON(span);
+          }
+        } else {
+          // クリック
+          if (isAssumeMode) {
+            // 仮定モード中の処理：black <-> cyan
+            numberAssumeMode(span);
+          } else {
+            // 通常モード中の処理：　black <-> gray
+            numberCandidateMode(span);
+          }
+        } 
+      }
+
+    }
+
+
+    //------------------------------------------------
+    //  何かキー入力（クリック除く）が発生した時の処理 
+    //　ALT,　CTRL,　数値、　DEL、　backキー
+    document.addEventListener("keydown", (e) => {
+      if (!selectedCell) return;
+      
+      if (!isAssumeMode) {
+        // CTRL+C：　コピー
+        if (e.ctrlKey && e.key === 'c') {
+          handleCopy();
+          return;
+        }
+ 
+        // CTRL+V：　ペースト
+        if (e.ctrlKey && e.key === 'v') {
+          handlePaste();
+          return;
+        }
+
+        // CTRL＋Z：　UNDO
+        if (e.ctrlKey && e.key === 'z') {
+          undo();
+          return;
+        }
+      }
+      
+
+      // 数値入力
+      if ("123456789".includes(e.key)) {
+
+        // 数値をマス上に表示
+        handleNumber(Number(e.key));
+
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        // Back または　del：　削除
+        handleDelete();
+
+      }
+    });
+
+
+    //------------------------------------------------  
+    //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
+    document.addEventListener("click", function(e) {
+   
+      // HTMLドキュメント内の要素を検索し、クラス名が.popupの最初の要素(Element)を取得
+      const popup = document.querySelector(".popup");
+      const hintPopup = document.querySelector(".hint-content");
+      
+      if (!usePopup) return;
+
+      if (!popup) return;
+
+      // console.log("bef popupの中をクリックした場合");
+      // popupの中をクリックした場合は何もしない
+      // if (popup.contains(e.target)) return;
+
+      // popupの中、または、ヒントポップアップをクリックした場合は何もしない
+      if ((popup.contains(e.target)) || (hintPopup.contains(e.target))) {
+        return;
+      }
+
+      // console.log("bef 盤面の通常セルをクリックした場合");
+      // 盤面の通常セルをクリックした場合も何もしない
+      if (e.target.classList.contains("cell")) {
+        // 黒マスをクリックする場合は除外（クローズ処理）
+        // 黒マス＝classListに"cell"と"clue"が設定されている
+        if (!e.target.classList.contains("clue")) return;
+      }
+      
+      // 選択中のセルをクリックした場合も何もしない
+      // if (e.target.classList.contains("cell")) return;
+      // 選択中のセルをクリックした場合も何もしない
+      const cell = e.target.closest('.cell');
+      if (cell == selectedCell) return;
+
+      closePopup(); 
+      
+      selectedCell = null;
+
+    });
+
+
+    //------------------------------------------------
+    //  ヒントのshowボタン（盤面の真上）押下時の処理 
+    document.getElementById("hintShowBtn").addEventListener("click", function() {
+      
+      const sum = parseInt(document.getElementById("hintSum").value);
+      const length = parseInt(document.getElementById("hintLength").value);
+
+      showHintResult();
+      openHintPopup();
+    });
+
+
+
+    //------------------------------------------------
+    //  hintポップアップ表示    
+    function openHintPopup() {
+        document.getElementById("hintPopup").style.display = "block";
+    }
+
+
+    //------------------------------------------------
+    //  hintポップアップ非表示  
+    function closeHintPopup() {
+        document.getElementById("hintPopup").style.display = "none";
+    }
+    
+    //------------------------------------------------
+    //  hintの数列算出  
+    function getCombinations(targetSum, length) {
+        const results = [];
+
+        function dfs(start, path, sum) {
+            if (path.length === length) {
+                if (sum === targetSum) {
+                    results.push([...path]);
+                }
+                return;
+            }
+
+            for (let i = start; i <= 9; i++) {
+                if (sum + i > targetSum) break;
+
+                path.push(i);
+                dfs(i + 1, path, sum + i);
+                path.pop();
+            }
+        }
+        dfs(1, [], 0);
+        return results;
+    }
+    
+    //------------------------------------------------
+    //  hintの数列表示処理  
+    function showHintResult() {
+        const length = parseInt(document.getElementById("hintLength").value);
+        const sum = parseInt(document.getElementById("hintSum").value);
+
+        const results = getCombinations(sum, length);
+        const container = document.getElementById("hintResult");
+
+        container.innerHTML = "";
+
+        const header = document.createElement("div");
+        header.textContent = `Sum=${sum},  Len=${length}`;
+        header.style.marginBottom = "5px";
+        container.appendChild(header);
+
+        const hr = document.createElement("hr");
+        container.appendChild(hr);
+
+        if (results.length === 0) {
+          const noData = document.createElement("div");
+          noData.textContent = "None"; // または "None"
+          container.appendChild(noData);
+          return;
+        }
+
+        results.sort((a, b) => {
+            for (let i = a.length - 1; i >= 0; i--) {
+                if (a[i] !== b[i]) {
+                    return b[i] - a[i]; // 降順
+                }
+            }
+            return 0;
+        });
+
+        results.forEach(r => {
+            const div = document.createElement("div");
+            div.textContent = r.slice().reverse().join(" ");
+            container.appendChild(div);
+        });
+    }
+
+
+    //------------------------------------------------
+    //  Confirmボタン（盤面の真上）押下時の処理
+    function confirmSelection() {
+      if (selectedCell) {
+        saveUndo("confirm", span);
+        confirmCell(selectedCell);
+      }
+    }
+
+
+    //------------------------------------------------
+    //  確定処理
+    function confirmCell(cell) {
+
+      const spans = cell.querySelectorAll("span");
+      let validCandidates = 0;
+      let candidatesPosi = 0;
+      let i = 0;
+      
+      const blackCount = countCell(cell);
+
+      if (blackCount == 0) return;
+
+      spans.forEach(span => {
+        if (span.classList.contains("gray")) {
+          span.classList.replace("gray","white"); 
+        }
+        if (span.classList.contains("black")) {
+          validCandidates ++;
+          candidatesPosi = i;    
+        }
+        i ++;
+      });
+
+
+      if (validCandidates == 1) {
+        cell.innerHTML = `<span class="fixed">${spans[candidatesPosi].textContent}</span>`;
+      }
+    }
+    
+
+    //------------------------------------------------
+    // 候補（黒色）数を算出 
+    function countCell(cell) {
+
+      const spans = cell.querySelectorAll("span");
+      let validCandidates = 0;
+
+      spans.forEach(span => {
+        if (span.classList.contains("black")) {
+          validCandidates++;
+        }
+      });
+      return validCandidates;
+    }
+
+
+    //------------------------------------------------
+    //  
+    function saveBoardState() {
+      savedState = {};
+      document.querySelectorAll('.cell').forEach(cell => {
+        const x = cell.dataset.x;
+        const y = cell.dataset.y;
+        const spans = Array.from(cell.querySelectorAll('span'));
+        savedState[`${x},${y}`] = spans.map(span => ({
+          value: span.textContent,
+          isGray: span.classList.contains('gray')
+        }));
+      });
+    }
+
+
+    //------------------------------------------------
+    // 1つ前の処理保存
+    // function saveUndo(actiontype, e) {
+    function saveUndo(actiontype, span) {
+
+      const cell = span.closest('.cell');
+
+
+      undoStack = [];
+      
+      if (actiontype  == "confirm") {
+
+      // 例：{ type: 'gray-toggle', x: 3, y: 5, number: '4', prev: 'black' }
+        undoStack.push({
+          type: actiontype,
+          x: cell.dataset.x,
+          y: cell.dataset.y,
+          before: Array.from(cell.querySelectorAll('span')).map(span => ({
+            value: span.textContent,
+            className: span.className       
+          }))
+        });
+      } else if (actiontype  == "toggle") {
+        undoStack.push({
+          type: actiontype,
+          x: cell.dataset.x,
+          y: cell.dataset.y,
+          value: span.textContent,
+          className: span.className
+        });
+      }
+
+    }
+
+
+    //------------------------------------------------ 
+    // UNDO処理
+    function undo() {
+      const last = undoStack.pop();
+      if (!last) return;
+
+      const cell = document.querySelector(`.cell[data-x="${last.x}"][data-y="${last.y}"]`);
+
+      if (last.type === "confirm") {
+        // マス全体を戻す
+        cell.innerHTML = "";
+        last.before.forEach(d => {
+          const span = document.createElement("span");
+          span.textContent = d.value;
+          span.classList.add(d.className);
+          cell.appendChild(span);
+        });
+
+      } else if (last.type === "toggle") {
+        // 特定の数字の色だけ戻す
+        const span = Array.from(cell.querySelectorAll('span'))
+                          .find(s => s.textContent === last.value);
+        if (span) {
+          span.className = last.className;
+        }
+
+      }  
+    }
+
+
+    //------------------------------------------------
+    //  仮定モード時にクリックした数字（水色になる＝候補数字）の水色になる前の状態を保存。OFFにしたときに戻すために必要。
+    //　戻すのは、revertAssumeChangesで実行。
+    // function toggleGrayAssumeMode(e) {
+    function toggleGrayAssumeMode(span) {
+      // if (!inAssumeMode) return;
+      if (!isAssumeMode) return;
+
+      const cell = span.closest('.cell');
+      const x = cell.dataset.x;
+      const y = cell.dataset.y;
+
+      assumedChanges.push({
+        x, y,
+        value: span.textContent,
+        previousClass: span.className
+      });
+
+    }
+
+
+    //------------------------------------------------
+    //  仮定モード時をOFFにしたため、戻す処理。（toggleGrayAssumeModeで保持していた水色になる前の状態に戻す。メッシュの位置、数字、以前に水色になる前の色）
+    //　仮定モードの時に保存したのは、toggleGrayAssumeModeで実行。
+    function revertAssumeChanges() {
+      assumedChanges.slice().reverse().forEach(change => {
+        const selector = `.cell[data-x="${change.x}"][data-y="${change.y}"] span`;
+        document.querySelectorAll(selector).forEach(span => {
+          if (span.textContent === change.value) {
+            span.className = change.previousClass;
+          }
+        });
+      });
+      assumedChanges = [];
+    }
+
+
+    //------------------------------------------------
+    //  一時保存データ読み込時に、既に仮定モードONになっていて、この過程モードをOFFにしたことにより、数値を水色から黒に戻す処理
+    //　一時保存データ読み込時に、既に仮定モードONで水色が存在する場合は、isHypotheticalCyan=trueとなっている。
+    function revertLoadCyanChange() {
+      uploadCyan.forEach( change => {
+        const selector = `.cell[data-x="${change.x}"][data-y="${change.y}"] span`;
+        document.querySelectorAll(selector).forEach(span => {
+          if (span.textContent === change.value) {
+            // span.className = change.previousClass;
+            span.classList.replace ("cyan", "black");
+          }
+        });
+      });
+      uploadCyan = [];
+    }
+
+    //------------------------------------------------
+    // ゲーム完了チェック
+    // function isComplete(board) {
+    function isComplete() {
+
+      let incompleteCount = 0;
+      document.querySelectorAll('.cell').forEach(cell => {
+        if ((!cell.classList.contains("clue")) && (!cell.classList.contains("block"))) {
+
+          const spans = cell.querySelectorAll("span");
+
+
+          if (spans.length != 1) {
+            incompleteCount ++;
+            return;
+          }
+
+          spans.forEach(span => {
+            if (!span.classList.contains("fixed"))
+              incompleteCount ++;
+              return; 
+          });
+
+        }
+      });
+
+      if (incompleteCount != 0) return false;
+      else {
+        return true;
+      }     
+
+    }
+    
+
+
+    //------------------------------------------------
+    // ゲーム完了チェック
+    function checkCompletion() {
+      // if (isComplete(currentBoard)) {
+      if (isComplete()) {
+        alert("やったぁー 🥰✌️❤️💞🎉");
+
+      } else {
+        alert("だーめだーめ 😢😢😢😫💦");
+      }
+    }
+
+
+    //------------------------------------------------
+    // ゲーム状態をJSONにしてダウンロード
+    // function downloadGameState() {
+    function downloadGameState() {
+      const gameState = {};
+
+      document.querySelectorAll('.cell').forEach(cell => {
+        const x = cell.dataset.x;
+        const y = cell.dataset.y;
+        const spans = [...cell.querySelectorAll('span')];
+        const digits = spans.map(span => ({
+          value: span.textContent,
+          className: span.className
+        }));
+        const confirmed = cell.classList.contains('confirmed');
+        if (digits.length > 0) {
+          gameState[`${x},${y}`] = { digits, confirmed };
+        }
+      });
+
+      const json = JSON.stringify(gameState, null, 2);
+      // const blob = new Blob([json], { type: 'application/json' });
+      const blob = new Blob([json], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = "_blank";
+      // const date = new Date().toISOString().replace(/[:.]/g, '-');
+      const now = new Date().toISOString();
+
+      // const date = new Date().toISOString().replace(/[:.]/g, '');
+      const date = now
+        .slice(2)
+        .replace('T', '')     // 日付と時間を分離
+        .replace(/[-:]/g, '')  // - と : を削除
+        .split('.')[0];        // ミリ秒を削除        
+
+      a.download = `KakuroTime_${selectedPuzzleNo}_${date}.json`;        
+      document.body.appendChild(a);
+      a.style.display = "none";
+      a.click();
+
+      setTimeout(() => {
+        document.body.removeChild(a);
+      }, 1000);
+
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 60000);
+
+    }
+
+
+    //------------------------------------------------
+    // JSONファイルを読み込んで盤面を復元
+    function uploadGameState(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const match = file.name.match(/KakuroTime_(\d+)_/);
+      if (match) {
+        selectedPuzzleNo = Number(match[1]);
+      }
+
+      createplayboard(selectedPuzzleNo);
+      isAssumeMode = false;
+      if (usePopup) currentMode = "input";
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const gameState = JSON.parse(e.target.result);
+        Object.entries(gameState).forEach(([key, data]) => {
+          const [x, y] = key.split(',');
+          const cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+          if (!cell) return;
+
+          cell.innerHTML = ''; // 一旦消す
+          data.digits.forEach(d => {
+            const span = document.createElement('span');
+            span.textContent = d.value;
+            span.classList = d.className;
+            if (span.classList.contains("red")) {
+              isAssumeMode = true; 
+              if (usePopup) {
+                currentMode = "assume";
+                selectedAssume = span;
+                setMode(currentMode);
+                updateModeButtons();
+              }
+            } else if (span.classList.contains("cyan")) {
+              uploadCyan.push({
+                x, y,
+                value: span.textContent,
+                loadClass: d.className
+              })
+              isAssumeCyan = true;
+            }
+            cell.appendChild(span);
+          });
+
+          if (data.confirmed) {
+            cell.classList.add('confirmed');
+            cell.querySelectorAll('span').forEach(span => {
+              if (!span.classList.contains('gray')) {
+                  span.classList.add('confirmed-text');
+              }
+            });
+          }
+        });
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+
+      document.getElementById("puzzleSelect").value = String(selectedPuzzleNo);
+
+    }
+
+
+
+    //------------------------------------------------
+    //  
+    function loadSelectedPuzzle() {
+      const select = document.getElementById('puzzleSelect');
+
+      selectedPuzzleNo = select.value;
+
+      createplayboard(selectedPuzzleNo);
+    }
+
+
+    //------------------------------------------------ 
+    // Create Board Mesh X x Y
+    function createplayboard(puzzleNo) {
+
+      const puzzle = allpuzzle[puzzleNo];
+      const cells = puzzle["cells"];
+
+      boardWidth = puzzle["width"];
+      boardHeight = puzzle["height"];
+
+      // 確仮ボタン追加
+      window.inputMode = "candidate";   
+
+      isAssumeMode = false;
+      if (usePopup) {
+        currentMode = "input";
+        selectedAssume = null;
+        setMode(currentMode);
+        updateModeButtons();
+      }
+      
+      const board = document.getElementById('grid');
+      board.innerHTML = ''; // ★ 既存の盤面をクリア
+
+      for (let y = 0; y < boardHeight; y++) {
+        for (let x = 0; x < boardWidth; x++) {
+
+          const div = document.createElement("div");
+          div.className = "cell";
+          div.dataset.x = x;
+          div.dataset.y = y;
+          div.onclick = (e) => selectCell(div, e);  // クリック処理
+          // div.ondblclick = (e) => toggleGray(e);    // ダブルクリック処理
+          grid.appendChild(div);
+          
+
+          // const key = `${x},${y}`;
+          const cluse = cells.find(c => c.x === x && c.y === y);
+
+      //    if (clues[key]) {
+          if (!cluse) {
+            // 通常の白マス
+            div.className = 'cell';
+          } else {
+            if (cluse["type"]) {
+              div.className = 'cell clue';
+              
+              // 横合計（右上）
+              if (cluse["across"] !== undefined) {
+                const clueRight = document.createElement('div');
+                clueRight.className = 'clue-right';
+                clueRight.textContent = cluse["across"];
+                div.appendChild(clueRight);
+                isSlash = true;
+              }
+
+              // 縦合計（左下）
+              if (cluse["down"] !== undefined) {
+
+                const clueDown = document.createElement('div');
+                clueDown.className = 'clue-down';
+                clueDown.textContent = cluse["down"];
+                div.appendChild(clueDown);
+                isSlash = true;
+              }
+              if (isSlash) {
+                // 斜め線
+                const slash = document.createElement('div');
+                slash.className = 'slash';
+                div.appendChild(slash);
+                isSlash = false;
+              }
+            }
+          }
+        }
+      }
+
+    }
+
+
+    //------------------------------------------------
+    //  
+    function populatePuzzleDropdown() {
+      const select = document.getElementById('puzzleSelect');
+      allpuzzlekey.forEach(num => {
+        const option = document.createElement('option');
+        option.value = num;
+        option.textContent = `${num}`;
+        select.appendChild(option);
+      });
+
+       select.value = String(selectedPuzzleNo);
+    }
+
+
+    //------------------------------------------------
+    //  ヒントポップアップ作成処理（ページロード時に一度だけ実行）
+    function initHintUI() {
+      const lengthSelect = document.getElementById("hintLength");
+      const sumSelect = document.getElementById("hintSum");
+
+      // マス数（8～5）
+      for (let i = 8; i >= 5; i--) {
+          let opt = document.createElement("option");
+          opt.value = i;
+          opt.textContent = i;
+          lengthSelect.appendChild(opt);
+      }
+
+      // 合計（仮：44～15）
+      for (let i = 44; i >= 15; i--) {
+          let opt = document.createElement("option");
+          opt.value = i;
+          opt.textContent = i;
+          sumSelect.appendChild(opt);
+      }
+
+
+      const hint = document.querySelector(".hint-content");
+
+      let startY = 0;
+      let startTop = 0;
+      let isDragging = false;
+
+      hint.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        startY = e.touches[0].clientY;
+        startTop = hint.getBoundingClientRect().top;
+      });
+
+      hint.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+
+        let newTop = startTop + deltaY;
+
+        const maxTop = window.innerHeight - hint.offsetHeight - 10;
+        const minTop = 10;
+
+        if (newTop < minTop) newTop = minTop;
+        if (newTop > maxTop) newTop = maxTop;
+
+        hint.style.top = newTop + "px";
+      });
+
+      hint.addEventListener("touchend", () => {
+        isDragging = false;
+      });
+    }
+    
+
+    //------------------------------------------------
+    //  
+    function initialize() {
+      selectedPuzzleNo = allpuzzlekey[0]
+
+      initPopupModes();
+      updateModeButtons();
+      initHintUI();
+
+      createplayboard(selectedPuzzleNo);
+    }
+
+
+    // --------------------------------------------------
+    // 4. DOM構築完了後にmain実行
+    // --------------------------------------------------
+
+    //------------------------------------------------
+    // main
+
+    // PC版、スマホ版切替処理
+    const params = new URLSearchParams(location.search);
+    let savedMode = localStorage.getItem("usePopup");
+
+    let usePopup;
+
+    if (params.has("popup")) {
+      // URL（あれば最優先）
+      usePopup = params.get("popup") === "on";
+      localStorage.setItem("usePopup", usePopup);
+    } else if (savedMode !== null) {
+      // 保存済み
+      usePopup = savedMode === "true";
+    } else {
+      // 初回
+      usePopup = ('ontouchstart' in window);
+    }
+
+    window.setPopupMode = function(on) {
+      localStorage.setItem("usePopup", on);
+      location.reload(); 
+    }
+    // console.log("usePopup:", usePopup);
+
+    // 初期化
+
+    //HTMLの部品(ファイルの読み込みボタン（jsonFileInpu)）を取得
+    const fileInput = document.getElementById("jsonFileInput");
+
+    //　ファイルを選択したら実行
+    fileInput.addEventListener("change", async (event) => {
+
+      // 選択ファイルの取得
+      const file = event.target.files[0];
+
+      if (!file) return;
+
+      try {
+        // ファイル内容読み込み
+        const text = await file.text();
+
+        // JSON化
+        allpuzzle = JSON.parse(text);
+
+        numallpuzzle = Object.keys(allpuzzle).length;
+        allpuzzlekey = Object.keys(allpuzzle);
+        puzzle = allpuzzle[allpuzzlekey[0]];
+
+        // 初期化
+        initialize();   
+        populatePuzzleDropdown();     
+
+        startGame();
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    function startGame() {
+
+      console.log("ゲーム開始");
+
+    }
+
+
+    window.addEventListener('DOMContentLoaded',  async () => { 
+
+      // ServiceWorckerの登録
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+          .then(() => console.log('Service Worker registered'));
+      }
+    });    
+
+
+  </script>
+
+</body>
+</html>
