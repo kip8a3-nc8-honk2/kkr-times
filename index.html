@@ -338,7 +338,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v7.0</div>
+  <div class="version">v7.1</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -1669,7 +1669,7 @@
       const sumSelect = document.getElementById("hintSum");
 
       // マス数（8～5）
-      for (let i = 8; i >= 5; i--) {
+      for (let i = 8; i >= 4; i--) {
           let opt = document.createElement("option");
           opt.value = i;
           opt.textContent = i;
@@ -1677,7 +1677,7 @@
       }
 
       // 合計（仮：44～15）
-      for (let i = 44; i >= 15; i--) {
+      for (let i = 44; i >= 10; i--) {
           let opt = document.createElement("option");
           opt.value = i;
           opt.textContent = i;
