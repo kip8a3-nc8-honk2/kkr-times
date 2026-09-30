@@ -338,7 +338,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.0</div>
+  <div class="version">v8.1</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -432,12 +432,17 @@
     // 数値をマス上に表示   
     function handleNumber(num) {
 
+      // spanを作成し、子として登録
+      // 例、<span class="black">1</span>
       const span = document.createElement("span");
       //span.textContent = e.key;
       span.textContent = String(num);
       span.classList.add("black");
+      // <div class="cell selected" fsys-x="1" data-y="1"></div>
       selectedCell.appendChild(span);
-
+      //<div class="cell selected" fsys-x="1" data-y="1">
+      // <span class="black">1</span>
+      //</div>
     }
 
 
@@ -777,8 +782,11 @@
 
       document.querySelectorAll(".popup-modes button").forEach(btn => {
       
+        // ポップアップモードボタンがクリックされたら、下記①②の処理を行うよう登録しておく。
         btn.addEventListener("click", function(e){
+          // ①親側への伝搬を停止
           e.stopPropagation();
+          // ②モードの設定
           setMode(this.dataset.mode);
 
         });
@@ -786,6 +794,31 @@
       });
     }
 
+    //------------------------------------------------
+    //　ポップアップ数値部ボタンの初期化    
+    // アプリ起動時に「1回だけ」呼び出して、1〜9のボタンを固定で生成しておく関数
+    function initPopupNumbers() {
+      const numberArea = document.querySelector(".popup-numbers");
+      
+      // 念のため中身を一度空にする
+      numberArea.innerHTML = "";
+
+      // 1〜9のボタンを「1度だけ」生成して配置
+      for (let i = 1; i <= 9; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        // ボタンの識別用に data 属性を付与しておく
+        btn.dataset.num = i;
+
+        // イベント関数もここに1回だけ登録（使い回されるためゴミにならない！）
+        btn.onclick = function(event) {
+          selectNumber(i);
+          event.stopPropagation();
+        };
+
+        numberArea.appendChild(btn);
+      }
+    }
 
     //------------------------------------------------
     //　ポップアップ数値更新
@@ -793,6 +826,7 @@
       
       const numberArea = document.querySelector(".popup-numbers");
       const spans = div.querySelectorAll("span");
+      
 
       let fixNumbers = [];
       let blackNumbers = [];
@@ -802,75 +836,117 @@
       let whiteNumbers = [];
 
       // spanを見て、マスに設定されている数値を取得し、candidateNumbersに設定①
+      // spans.forEach(span => {
+      //   const value = span.textContent;
+      
+      //　【GC対策】ポップアップのGC削減
+      //　【修正前】 
+      // 9個のボタンを巡回してクラス（名）を上書きするだけ　
+      // 
+      //   if (span.classList.contains("fixed")) {
+      //     fixNumbers.push(value);
+      //   } else if (span.classList.contains("black")) {
+      //     blackNumbers.push(value);     
+      //   } else if (span.classList.contains("gray")) {
+      //     grayNumbers.push(value);       
+      //   } else if (span.classList.contains("cyan")) {
+      //     cyanNumbers.push(value);
+      //   } else if (span.classList.contains("red")){
+      //     redNumbers.push(value);
+      //   } else if (span.classList.contains("white")){
+      //     whiteNumbers.push(value);
+      //   }
+
+      // });
+
+      //　【修正後】 
       spans.forEach(span => {
         const value = span.textContent;
+        if (span.classList.contains("fixed"))      fixNumbers.push(value);
+        else if (span.classList.contains("black")) blackNumbers.push(value);     
+        else if (span.classList.contains("gray"))  grayNumbers.push(value);       
+        else if (span.classList.contains("cyan"))  cyanNumbers.push(value);
+        else if (span.classList.contains("red"))   redNumbers.push(value);
+        else if (span.classList.contains("white")) whiteNumbers.push(value);
+      });      
 
-        if (span.classList.contains("fixed")) {
-          fixNumbers.push(value);
-        } else if (span.classList.contains("black")) {
-          blackNumbers.push(value);     
-        } else if (span.classList.contains("gray")) {
-          grayNumbers.push(value);       
-        } else if (span.classList.contains("cyan")) {
-          cyanNumbers.push(value);
-        } else if (span.classList.contains("red")){
-          redNumbers.push(value);
-        } else if (span.classList.contains("white")){
-          whiteNumbers.push(value);
-        }
 
-      });
-
+      // 【劇的改善】innerHTML = "" や createElement を全削除！
+      // 【修正前】
+      // すでに画面にある9個のボタンをループで取得してクラス名（色）だけを更新する
 
       //  ポップアップ上に数値を表示
-      numberArea.innerHTML = "";
+      // numberArea.innerHTML = "";
       // ①のcandidateNumersに設定済の数値のボタンに対し、classNameをcandidateと設定。これにより、ボタンが濃い色で表示
+
+      // for (let i = 1; i <= 9; i++) {
+      //   const btn = document.createElement("button");
+
+      //   let className = "";
+
+      //   if (fixNumbers.includes(String(i))) {
+      //     className = "fix";
+      //   }
+      //   else if (blackNumbers.includes(String(i))) {
+      //     className = "black";
+      //   }
+      //   else if (grayNumbers.includes(String(i))) {
+      //     className = "gray";
+      //   }
+      //   else if (cyanNumbers.includes(String(i))) {
+      //     className = "cyan";
+      //   }
+      //   else if (redNumbers.includes(String(i))) {
+      //     className = "red";
+      //   }
+      //   else if (whiteNumbers.includes(String(i))) {
+      //     className = "white";
+      //   }
+
+
+      //   btn.className = className;
+      //   btn.textContent = i;     // 数値ボタンにiを設定
+      //   // 数値ボタンがクリックされたときに、行う処理を予め登録しておく。
+      //   btn.onclick = function(event) {       
+      //     // eventが発生した場合、以下の処理を行うようボタンに登録しておく。
+      //     // つまり、この関数に入ってきたときに、イベントが発生していたら、以下の２つの処理をするのではない。
+      //     // あくまで、もしイベントが発生した時には、この処理を行うんだよ！と事前に登録しておくだけの処理
+      //     //  例、もし5のボタンが押されたら、「selecteMumber(i);とevent.stopPropagation();を行うこと」、ボタン5登録しておく。
+         
+      //     // 事前に数値ボタンに登録する処理は、以下の①②
+      //     // ①数値選択の処理
+      //     selectNumber(i);
+          
+      //     // ②親側のクリック処理まで伝えない
+      //     event.stopPropagation();
+      //   };
+
+      //   numberArea.appendChild(btn);  // ボタンエリアに数値ボタンを設定(ボタン１個表示)。
+
+      // 【修正後】
+      // すでに画面にある9個のボタンをループで取得してクラス名（色）だけを更新する
       for (let i = 1; i <= 9; i++) {
-        const btn = document.createElement("button");
+        // 既存のボタンを data 属性からピンポイントで取得
+        const btn = numberArea.querySelector(`button[data-num="${i}"]`);
+        if (!btn) continue;
 
         let className = "";
+        if      (fixNumbers.includes(String(i)))   className = "fix";
+        else if (blackNumbers.includes(String(i))) className = "black";
+        else if (grayNumbers.includes(String(i)))  className = "gray";
+        else if (cyanNumbers.includes(String(i)))  className = "cyan";
+        else if (redNumbers.includes(String(i)))   className = "red";
+        else if (whiteNumbers.includes(String(i))) className = "white";
 
-        if (fixNumbers.includes(String(i))) {
-          className = "fix";
-        }
-        else if (blackNumbers.includes(String(i))) {
-          className = "black";
-        }
-        else if (grayNumbers.includes(String(i))) {
-          className = "gray";
-        }
-        else if (cyanNumbers.includes(String(i))) {
-          className = "cyan";
-        }
-        else if (redNumbers.includes(String(i))) {
-          className = "red";
-        }
-        else if (whiteNumbers.includes(String(i))) {
-          className = "white";
-        }
+        // クラス名（色）だけを上書き（メモリのゴミは1バイトも出ません）
+        btn.className = className;      
 
-
-        btn.className = className;
-        btn.textContent = i;     // 数値ボタンにiを設定
-        
-        btn.onclick = function(event) {       
-          // event発生時のみ実行される。
-          // ここは、数値ボタンを押した時のevent発生時（この関数のここ）
-          // →関数selectNumber→関数updatePopup→再度updatePopupNumbers（この関数）と2回呼ばれる。
-          // 2回目は、ポップアップの数値の再表示だけの処理なので、イベントは発生していないため、ここはスキップされる
-          // console.log("i="+i+"    event.target="+event.target); 
-          selectNumber(i);
-          
-          event.stopPropagation();
-        };
-
-        numberArea.appendChild(btn);  // ボタンエリアに数値ボタンを設定。
       }
     }    
 
 
     //------------------------------------------------
-    // ポップアップのUPDATE   
+    // ポップアップのUPDATE（数値の更新）   
     function updatePopup(div) {
       const popup = document.getElementById("cellPopup");
       const spans = div.querySelectorAll("span");
@@ -920,8 +996,11 @@
               }
             }
           } else if (isInputMode) {
+            // 1. 対象の要素（span）をメモリ上から安全に削除
             span.remove();  // 既にあれば削除（トグルOFF）
-            div.innerHTML = div.innerHTML;
+
+            // 2. 【劇的改善】innerHTML の大破壊ラインを完全に消去！            
+            // div.innerHTML = div.innerHTML;
 
           }
 
@@ -1390,6 +1469,7 @@
       uploadCyan = [];
     }
 
+    
     //------------------------------------------------
     // ゲーム完了チェック
     // function isComplete(board) {
@@ -1426,8 +1506,10 @@
 
 
     //------------------------------------------------
-    // ゲーム完了チェック
+    // ゲーム完了・未完メッセージ表示
     function checkCompletion() {
+
+
       // if (isComplete(currentBoard)) {
       if (isComplete()) {
         alert("やったぁー 🥰✌️❤️💞🎉");
@@ -1439,7 +1521,7 @@
 
 
     //------------------------------------------------
-    // ゲーム状態をJSONにしてダウンロード
+    // ゲーム状態をJSONにしてダウンロード（JSONファイルを作成して保存）
     // function downloadGameState() {
     function downloadGameState() {
       const gameState = {};
@@ -1493,7 +1575,7 @@
 
 
     //------------------------------------------------
-    // JSONファイルを読み込んで盤面を復元
+    // 保存していたJSONファイルを読み込んで盤面を復元
     function uploadGameState(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1558,12 +1640,13 @@
 
 
     //------------------------------------------------
-    //  
+    //  選択した番号のパズル盤面を作成
     function loadSelectedPuzzle() {
       const select = document.getElementById('puzzleSelect');
 
       selectedPuzzleNo = select.value;
 
+      // パズル盤面を作成
       createplayboard(selectedPuzzleNo);
     }
 
@@ -1658,7 +1741,7 @@
 
 
     //------------------------------------------------
-    //  
+    // パズル番号選択のためのドロップダウンリストの表示文字列を作成 
     function populatePuzzleDropdown() {
       const select = document.getElementById('puzzleSelect');
       allpuzzlekey.forEach(num => {
@@ -1737,6 +1820,10 @@
 
       initPopupModes();
       updateModeButtons();
+
+      // ポップアップ数値ボタンの初期化
+      initPopupNumbers();
+
       initHintUI();
 
       createplayboard(selectedPuzzleNo);
