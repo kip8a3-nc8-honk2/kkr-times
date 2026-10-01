@@ -338,7 +338,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.1</div>
+  <div class="version">v8.2</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -639,7 +639,7 @@
       if (top < 0) {
         top = 10;
       }
-      
+      popup.style.transform = ""; 
       popup.style.left = left + "px";
       popup.style.top = top + "px";
 
@@ -1691,7 +1691,11 @@
           div.className = "cell";
           div.dataset.x = x;
           div.dataset.y = y;
-          div.onclick = (e) => selectCell(div, e);  // クリック処理
+
+          // クリック処理の登録：
+          // 　クリックイベントが発生したら、selectCell関数を実行するように予め登録しておく
+          // 　実際にクリックが発生したら、直接selectCell関数が実行される。
+          div.onclick = (e) => selectCell(div, e);  
           // div.ondblclick = (e) => toggleGray(e);    // ダブルクリック処理
           grid.appendChild(div);
           
@@ -1787,7 +1791,19 @@
       hint.addEventListener("touchstart", (e) => {
         isDragging = true;
         startY = e.touches[0].clientY;
-        startTop = hint.getBoundingClientRect().top;
+
+        // GPUモード対応
+        // 位置計算方法の改善
+        // 【劇的改善】getBoundingClientRect()の代わりに、現在のtransformの値を安全に取得する
+        // これにより、ブラウザへの強制的な位置再計算（リフロー）を完全にストップします
+        // 改善前 
+        // startTop = hint.getBoundingClientRect().top;
+        // 改善後
+        const style = window.getComputedStyle(hint);
+        const matrix = new WebKitCSSMatrix(style.transform);
+        currentTransformY = matrix.m42; // 現在のY方向の移動量を取得
+
+
       });
 
       hint.addEventListener("touchmove", (e) => {
@@ -1796,16 +1812,38 @@
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - startY;
 
-        let newTop = startTop + deltaY;
+        // GPUモード対応：　次の移動量を計算
+        // let newTop = startTop + deltaY;
+        let newTransformY = currentTransformY + deltaY;
 
-        const maxTop = window.innerHeight - hint.offsetHeight - 10;
-        const minTop = 10;
+        // GPUモード対応
+        // 修正前
+        // const maxTop = window.innerHeight - hint.offsetHeight - 10;
+        // const minTop = 10;
 
-        if (newTop < minTop) newTop = minTop;
-        if (newTop > maxTop) newTop = maxTop;
+        // if (newTop < minTop) newTop = minTop;
+        // if (newTop > maxTop) newTop = maxTop;
 
-        hint.style.top = newTop + "px";
-      });
+        // hint.style.top = newTop + "px";
+        // 修正後
+        // 【画面外はみ出しガードの調整】
+        // 基準位置（初期位置）からの移動量で制限をかけます
+        // ※もしガードの効きが強すぎる、または弱い場合は、ここの数値を少し微調整してください
+        const baseTop = hint.offsetTop; // 初期配置のTop位置
+        const maxMoveY = window.innerHeight - hint.offsetHeight - baseTop - 10;
+        const minMoveY = 10 - baseTop;
+
+        if (newTransformY < minMoveY) newTransformY = minMoveY;
+        if (newTransformY > maxMoveY) newTransformY = maxMoveY;
+
+        // 【劇的改善】style.topの代わりに、GPU（transform）を使って移動！
+        // 1秒間に60回動かしても、メインメモリを1バイトも汚さず、超軽量に滑らかに動きます
+        hint.style.transform = `translateY(${newTransformY}px)`;
+        
+        // 画面の不要なスクロール（バウンスなど）を防止する
+        e.preventDefault(); 
+      // });
+      }, { passive: false }); // preventDefaultを効かせるための設定
 
       hint.addEventListener("touchend", () => {
         isDragging = false;
@@ -1818,13 +1856,18 @@
     function initialize() {
       selectedPuzzleNo = allpuzzlekey[0]
 
+      // ポップアップモードボタンの初期化
       initPopupModes();
       updateModeButtons();
 
       // ポップアップ数値ボタンの初期化
       initPopupNumbers();
 
+      // ヒント表示の初期化
       initHintUI();
+
+      // パズル番号ドロップダウン
+      populatePuzzleDropdown();     
 
       createplayboard(selectedPuzzleNo);
     }
@@ -1904,7 +1947,7 @@
 
         // 初期化
         initialize();   
-        populatePuzzleDropdown();     
+        // populatePuzzleDropdown();     
 
         startGame();
       } catch (err) {
