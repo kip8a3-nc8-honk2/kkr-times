@@ -184,12 +184,13 @@
       touch-action: manipulation;
     }
 
-    .popup button.fix {
+    /* 不要では？ */
+    /*.popup button.fix {
       background-color: #4da6ff;
       color: white;
-    }
+    }*/
     
-
+/*  */
     .popup button.fix {
       background-color: #e4d619;
     }
@@ -338,7 +339,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.4</div>
+  <div class="version">v8.5</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -400,10 +401,10 @@
     let isAssumeMode = false;
     let isAssumeCyan = false;
     let isSlash = false;
-    let savedState = {};
-    let assumedChanges = [];
-    let uploadCyan = [];
-    let undoStack = [];
+    // let savedState = {};
+    let assumedChanges = [];    // 仮定モード時の水色数字の配列
+    let uploadCyan = [];        // 盤面復元時の水色数値の配列
+    let undoStack = [];         // 一つ前処理の状態を保存している配列
     let selectedPuzzleNo = null;
     let boardWidth = null; 
     let boardHeight = null;
@@ -424,6 +425,24 @@
     // 生テキストの代わりに、問題ごとの「文字列」を格納する配列（またはオブジェクト）を用意
     let puzzleTextMap = {};
 
+    // 配列に設定する色とID変換テーブル
+    // 
+    const classNameTable = [
+      "hidden", // 0番
+      "black",  // 1番
+      "gray",   // 2番
+      "cyan",   // 3番
+      "red",    // 4番
+      "white",  // 5番  
+      "fixed"     // 6番  
+    ];
+
+    // undoStackに設定するactiontype変換テーブル
+    const actiontypeNameTable = [
+      "confirm",
+      "toggle"
+    ];
+
     // =====================================================================
     // ** PCとスマホ共通 **                             
     // =====================================================================
@@ -438,9 +457,9 @@
       //span.textContent = e.key;
       span.textContent = String(num);
       span.classList.add("black");
-      // <div class="cell selected" fsys-x="1" data-y="1"></div>
+      // <div class="cell selected" data-x="1" data-y="1"></div>
       selectedCell.appendChild(span);
-      //<div class="cell selected" fsys-x="1" data-y="1">
+      //<div class="cell selected" data-x="1" data-y="1">
       // <span class="black">1</span>
       //</div>
     }
@@ -519,7 +538,9 @@
 
       //  仮定モードON
       //　盤面全体をメモリ上へ一時保存
-      saveBoardState();
+      // ？？？これ必要か？？？？
+      // saveBoardState();
+
       // inAssumeMode = true;
       
       //e.target.classList.replace("black","red");
@@ -931,7 +952,7 @@
         if (!btn) continue;
 
         let className = "";
-        if      (fixNumbers.includes(String(i)))   className = "fix";
+        if      (fixNumbers.includes(String(i)))   className = "fix";  //　ボタンの場合はclasName="fix"。"fixed"はspanで使う時のみ
         else if (blackNumbers.includes(String(i))) className = "black";
         else if (grayNumbers.includes(String(i)))  className = "gray";
         else if (cyanNumbers.includes(String(i)))  className = "cyan";
@@ -1297,22 +1318,28 @@
       let candidatesPosi = 0;
       let i = 0;
       
+      // 黒数字をカウント
       const blackCount = countCell(cell);
 
       if (blackCount == 0) return;
 
       spans.forEach(span => {
         if (span.classList.contains("gray")) {
+          // 灰色⇒白
           span.classList.replace("gray","white"); 
         }
         if (span.classList.contains("black")) {
+          // 候補数をカウント
           validCandidates ++;
           candidatesPosi = i;    
         }
         i ++;
       });
 
-
+      //  候補が残り1つの場合、
+      // <span class="black">7</span>を
+      // <span class="fixed">7</span>にする
+      // fixedにしたことで、文字サイズが大きくなる。
       if (validCandidates == 1) {
         cell.innerHTML = `<span class="fixed">${spans[candidatesPosi].textContent}</span>`;
       }
@@ -1335,24 +1362,26 @@
     }
 
 
-    //------------------------------------------------
-    //  
-    function saveBoardState() {
-      savedState = {};
-      document.querySelectorAll('.cell').forEach(cell => {
-        const x = cell.dataset.x;
-        const y = cell.dataset.y;
-        const spans = Array.from(cell.querySelectorAll('span'));
-        savedState[`${x},${y}`] = spans.map(span => ({
-          value: span.textContent,
-          isGray: span.classList.contains('gray')
-        }));
-      });
-    }
+    // //------------------------------------------------
+    // //  仮定モードONになった時に、盤面全体を一時保存
+    // function saveBoardState() {
+    //   savedState = {};
+    //   document.querySelectorAll('.cell').forEach(cell => {
+    //     const x = cell.dataset.x;
+    //     const y = cell.dataset.y;
+    //     const spans = Array.from(cell.querySelectorAll('span'));
+    //     savedState[`${x},${y}`] = spans.map(span => ({
+    //       value: span.textContent,
+    //       isGray: span.classList.contains('gray')
+    //     }));
+    //   });
+    // }
 
 
     //------------------------------------------------
     // 1つ前の処理保存
+    // undoStackに登録。　actiontypeがconfirmの時は、マスに入っている全ての数字を登録しし、それ以外の時は、特定の数字のみ登録
+    // 戻す時は、undok関数にて実施。
     // function saveUndo(actiontype, e) {
     function saveUndo(actiontype, span) {
 
@@ -1388,6 +1417,8 @@
 
     //------------------------------------------------ 
     // UNDO処理
+    // saveUndo関数で登録した1つ前の処理に戻す。
+    // 前の処理が、confirmで登録していたら、マス全体の数値を戻す。
     function undo() {
       const last = undoStack.pop();
       if (!last) return;
@@ -1455,7 +1486,12 @@
 
     //------------------------------------------------
     //  一時保存データ読み込時に、既に仮定モードONになっていて、この過程モードをOFFにしたことにより、数値を水色から黒に戻す処理
-    //　一時保存データ読み込時に、既に仮定モードONで水色が存在する場合は、isHypotheticalCyan=trueとなっている。
+    //　一時保存データ読み込時に、既に仮定モードONで水色が存在する場合は、isAssumeCyan=trueとなっている。
+    // 
+    //　一時保存データ（JSONファイル）の内容が仮定モードOFF時の場合、盤面復元した時にどれが水色であったかを記録しておく。
+    // なぜなら、仮定モードをOFFにしたときに、盤面復元後に何を仮定としたか（水色にしたか）は、assumedChangesに記録されているが、
+    // 盤面復元時に既に水色となっていた数値の情報がないため、OFFを解除しても水色が残ってしまうのを防ぐため。
+    // なのでuploadCyanを盤面復元時に登録している。
     function revertLoadCyanChange() {
       uploadCyan.forEach( change => {
         const selector = `.cell[data-x="${change.x}"][data-y="${change.y}"] span`;
