@@ -339,7 +339,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.5</div>
+  <div class="version">v8.6</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -425,22 +425,31 @@
     // 生テキストの代わりに、問題ごとの「文字列」を格納する配列（またはオブジェクト）を用意
     let puzzleTextMap = {};
 
+    
+    // ポップアップ数字表示用配列
+    let fixNumbers = [];
+    let blackNumbers = [];
+    let grayNumbers = [];
+    let cyanNumbers = [];
+    let redNumbers = [];
+    let whiteNumbers = [];
+
     // 配列に設定する色とID変換テーブル
     // 
     const classNameTable = [
-      "hidden", // 0番
+      "unused", // 0番
       "black",  // 1番
       "gray",   // 2番
       "cyan",   // 3番
       "red",    // 4番
       "white",  // 5番  
-      "fixed"     // 6番  
+      "fixed"   // 6番  
     ];
 
     // undoStackに設定するactiontype変換テーブル
-    const actiontypeNameTable = [
-      "confirm",
-      "toggle"
+    const actiontypeTable = [
+      "confirm",  // 0番
+      "toggle"    // 1番
     ];
 
     // =====================================================================
@@ -449,6 +458,9 @@
 
     //------------------------------------------------
     // 数値をマス上に表示   
+    // 数値が入力された場合に呼ばれるが、PCの場合は既存のspanに同じ数値がある場合もある。
+    // スマホの場合、ポップアップの数値をクリックした場合で、かつ、マスにその数値が未登録の場合にのみ呼ばれる。
+    // ここでは、spanを設定する前のマスに数値が存在しているか否かはわからない。
     function handleNumber(num) {
 
       // spanを作成し、子として登録
@@ -547,8 +559,11 @@
 
       // toggleGrayAssumeMode(e);
       // saveUndo("toggle", e);
-      toggleGrayAssumeMode(span);
-      saveUndo("toggle", span);
+      // 以下2つの関数（①toggleGrayAssumeMode、②saveUndo）で、両方の配列（assumedChangesとundoStack）にpushしている。
+      // Q.両方の配列を持つ必要があるのか？
+      // Q. 仮定モードONにしたとき（黒→赤）の時にも①の関数が呼ばれる。①は水色になる前だけ呼ばれるのでは？
+      toggleGrayAssumeMode(span);   // assumedChangesに追加　（仮定モード中の全処理を追加）
+      saveUndo("toggle", span);     // undoStackに追加　（変更前のこの値だけ１個の状態を保持）
 
       // e.target.classList.replace("black","red");
       span.classList.replace("black","red");
@@ -624,12 +639,13 @@
       let html = "";
       // let finalNumbers = [];
       // let candidateNumbers = [];
-      let fixNumbers = [];
-      let blackNumbers = [];
-      let grayNumbers = [];
-      let cyanNumbers = [];
-      let redNumbers = [];
-      let whiteNumbers = [];
+
+      // let fixNumbers = [];
+      // let blackNumbers = [];
+      // let grayNumbers = [];
+      // let cyanNumbers = [];
+      // let redNumbers = [];
+      // let whiteNumbers = [];
       let displayValue = "";
 
       if (!usePopup) return;
@@ -849,12 +865,19 @@
       const spans = div.querySelectorAll("span");
       
 
-      let fixNumbers = [];
-      let blackNumbers = [];
-      let grayNumbers = [];
-      let cyanNumbers = [];
-      let redNumbers = [];
-      let whiteNumbers = [];
+      // let fixNumbers = [];
+      // let blackNumbers = [];
+      // let grayNumbers = [];
+      // let cyanNumbers = [];
+      // let redNumbers = [];
+      // let whiteNumbers = [];
+
+      fixNumbers.length = 0;
+      blackNumbers.length = 0;
+      grayNumbers.length = 0;
+      cyanNumbers.length = 0;
+      redNumbers.length = 0;
+      whiteNumbers.length = 0;
 
       // spanを見て、マスに設定されている数値を取得し、candidateNumbersに設定①
       // spans.forEach(span => {
@@ -992,6 +1015,7 @@
       if ((currentMode == "copy") || (currentMode =="paste") || currentMode == "undo") return;
 
       spans.forEach(span => {
+        // 数値がマスに存在する場合
         if (span.textContent == num) {
 
           if (isCandidateMode) {
@@ -1029,9 +1053,13 @@
         }
       });
 
+      // 数値がマスに登録されていない場合
       if (!found) {
         if (currentMode != "assume") {
+          // handleNumberの前にundoStackへ登録すること
+          // saveUndo("toggle",)
         // 数値をマス上に表示
+        // この関数内で、spanを作成し、更新している。ここでは、既存の数値がない場合の処理なので。
           handleNumber(num); 
         }
       } 
@@ -1153,6 +1181,7 @@
       if ("123456789".includes(e.key)) {
 
         // 数値をマス上に表示
+        // 同じ数字が既に登録していても追加される。
         handleNumber(Number(e.key));
 
       } else if (e.key === "Backspace" || e.key === "Delete") {
@@ -1382,33 +1411,74 @@
     // 1つ前の処理保存
     // undoStackに登録。　actiontypeがconfirmの時は、マスに入っている全ての数字を登録しし、それ以外の時は、特定の数字のみ登録
     // 戻す時は、undok関数にて実施。
+    // 
+    // 配列への登録は、既存spanにデータの存在は関係ない。データが存在しない場合、数値は次に設定に値を、xy現在選択セルから情報を取得すればいい。
+    // 多分読み出し時に影響があるのだろう。
     // function saveUndo(actiontype, e) {
     function saveUndo(actiontype, span) {
 
       const cell = span.closest('.cell');
 
 
-      undoStack = [];
-      
-      if (actiontype  == "confirm") {
+      // undoStack = [];
+      // 配列GC対応      
+      // if (actiontype  == "confirm") {
+
+      // 例：{ type: 'gray-toggle', x: 3, y: 5, number: '4', prev: 'black' }
+        // undoStack.push({
+        //   type: actiontype,
+        //   x: cell.dataset.x,
+        //   y: cell.dataset.y,
+        //   before: Array.from(cell.querySelectorAll('span')).map(span => ({
+        //     value: span.textContent,
+        //     className: span.className       
+        //   }))
+        // });
+      // } else if (actiontype  == "toggle") {
+      //   undoStack.push({
+      //     type: actiontype,
+      //     x: cell.dataset.x,
+      //     y: cell.dataset.y,
+      //     value: span.textContent,
+      //     className: span.className
+      //   });
+      // }
+
+
+      undoStack.length = 0;
+      const action = actiontypeTable[actiontype];
+      if (actiontype  === "confirm") {
 
       // 例：{ type: 'gray-toggle', x: 3, y: 5, number: '4', prev: 'black' }
         undoStack.push({
-          type: actiontype,
-          x: cell.dataset.x,
-          y: cell.dataset.y,
-          before: Array.from(cell.querySelectorAll('span')).map(span => ({
-            value: span.textContent,
-            className: span.className       
-          }))
+          type: action,
+          x: Number(cell.dataset.x),
+          y: Number(cell.dataset.y),
+          before: Array.from(cell.querySelectorAll('span')).map(span => {
+            const cid = classNameTable.indexOf(span.className);
+            return {
+              // 三項演算子(?:)
+              // 条件式 ?　trueの時の処理 : falseの時の処理
+              // textContentが空文字でなければ、処理Number(span.textContent)を、空文字ならば0を入れる
+              // value: span.textContent !=="" ? Number(span.textContent) : 0,
+              // cidが-1でなければ、cidを入れ、cid==-1なら0を入れる
+              // className: cid !== -1 ? cid: 0
+              // 
+              value: Number(span.textContent),
+              className: cid
+              
+
+            };
+          })
         });
-      } else if (actiontype  == "toggle") {
+      } else if (actiontype  === "toggle") {
         undoStack.push({
-          type: actiontype,
-          x: cell.dataset.x,
-          y: cell.dataset.y,
-          value: span.textContent,
-          className: span.className
+          type: action,
+          x: Number(cell.dataset.x),
+          y: Number(cell.dataset.y),
+          // value: span.textContent !=="" ? Number(span.textContent) : 0,
+          value: Number(span.textContent),
+          className: classNameTable.indexOf(span.className)
         });
       }
 
@@ -1424,26 +1494,46 @@
       if (!last) return;
 
       const cell = document.querySelector(`.cell[data-x="${last.x}"][data-y="${last.y}"]`);
+      const actiontype = actiontypeTable[last.type];
+      
+      // if (last.type === "confirm") {
+      //   // マス全体を戻す
+      //   cell.innerHTML = "";
+      //   last.before.forEach(d => {
+      //     const span = document.createElement("span");
+      //     span.textContent = d.value;
+      //     span.classList.add(d.className);
+      //     cell.appendChild(span);
+      //   });
 
-      if (last.type === "confirm") {
+      // } else if (last.type === "toggle") {
+      //   // 特定の数字の色だけ戻す
+      //   const span = Array.from(cell.querySelectorAll('span'))
+      //                     .find(s => s.textContent === last.value);
+      //   if (span) {
+      //     span.className = last.className;
+      //   }
+      // } 
+      
+      if (actiontype == "confirm") {
         // マス全体を戻す
         cell.innerHTML = "";
         last.before.forEach(d => {
           const span = document.createElement("span");
           span.textContent = d.value;
-          span.classList.add(d.className);
+          span.classList.add(classNameTable[d.className]);
           cell.appendChild(span);
         });
 
-      } else if (last.type === "toggle") {
+      } else if (actiontype == "toggle") {
         // 特定の数字の色だけ戻す
         const span = Array.from(cell.querySelectorAll('span'))
-                          .find(s => s.textContent === last.value);
+                          .find(s => Number(s.textContent) === last.value);
         if (span) {
-          span.className = last.className;
+          span.className = classNameTable[last.className];
         }
-
       }  
+
     }
 
 
@@ -1456,13 +1546,24 @@
       if (!isAssumeMode) return;
 
       const cell = span.closest('.cell');
-      const x = cell.dataset.x;
-      const y = cell.dataset.y;
+      // 配列GC対応
+      // const x = cell.dataset.x;
+      // const y = cell.dataset.y;
+
+      // assumedChanges.push({
+      //   x, y,
+      //   value: span.textContent,
+      //   previousClass: span.className
+      // });
+
+      const x = Number(cell.dataset.x);
+      const y = Number(cell.dataset.y);
 
       assumedChanges.push({
         x, y,
-        value: span.textContent,
-        previousClass: span.className
+        // value: span.textContent !=="" ? Number(span.textContent) : 0,
+        value: Number(span.textContent),
+        previousClass: classNameTable.indexOf(span.className)
       });
 
     }
@@ -1475,12 +1576,15 @@
       assumedChanges.slice().reverse().forEach(change => {
         const selector = `.cell[data-x="${change.x}"][data-y="${change.y}"] span`;
         document.querySelectorAll(selector).forEach(span => {
-          if (span.textContent === change.value) {
-            span.className = change.previousClass;
+          if (Number(span.textContent) === change.value) {
+            // span.className = change.previousClass; 
+            span.className = classNameTable[change.previousClass];
           }
         });
       });
-      assumedChanges = [];
+      // assumedChanges = [];
+      assumedChanges.length = 0;
+      
     }
 
 
@@ -1496,13 +1600,15 @@
       uploadCyan.forEach( change => {
         const selector = `.cell[data-x="${change.x}"][data-y="${change.y}"] span`;
         document.querySelectorAll(selector).forEach(span => {
-          if (span.textContent === change.value) {
+          if (Number(span.textContent) === change.value) {
             // span.className = change.previousClass;
             span.classList.replace ("cyan", "black");
           }
         });
       });
-      uploadCyan = [];
+      // uploadCyan = [];
+      uploadCyan.length = 0;
+      
     }
 
     
@@ -1646,10 +1752,19 @@
                 updateModeButtons();
               }
             } else if (span.classList.contains("cyan")) {
+
+                    // 配列GC対応     
+              // uploadCyan.push({
+              //   x, y,
+              //   value: span.textContent,
+              //   loadClass: d.className
+              // })
               uploadCyan.push({
-                x, y,
-                value: span.textContent,
-                loadClass: d.className
+                x: Number(x),
+                y: Number(y),
+                // value: span.textContent !=="" ? Number(span.textContent) : 0,
+                value: Number(span.textContent),
+                loadClass: classNameTable.indexOf(d.className)
               })
               isAssumeCyan = true;
             }
