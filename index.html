@@ -339,7 +339,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.6</div>
+  <div class="version">v8.7</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -425,6 +425,7 @@
     // 生テキストの代わりに、問題ごとの「文字列」を格納する配列（またはオブジェクト）を用意
     let puzzleTextMap = {};
 
+    let isExistNumber = false;
     
     // ポップアップ数字表示用配列
     let fixNumbers = [];
@@ -461,12 +462,19 @@
     // 数値が入力された場合に呼ばれるが、PCの場合は既存のspanに同じ数値がある場合もある。
     // スマホの場合、ポップアップの数値をクリックした場合で、かつ、マスにその数値が未登録の場合にのみ呼ばれる。
     // ここでは、spanを設定する前のマスに数値が存在しているか否かはわからない。
-    function handleNumber(num) {
+    // function handleNumber(num) {
+    function handleNumber(num, isExistNum) {
 
       // spanを作成し、子として登録
       // 例、<span class="black">1</span>
       const span = document.createElement("span");
       //span.textContent = e.key;
+
+      // 変更前の状態登録
+      saveUndo("toggle", span, isExistNum, num);
+
+
+
       span.textContent = String(num);
       span.classList.add("black");
       // <div class="cell selected" data-x="1" data-y="1"></div>
@@ -1011,6 +1019,7 @@
       // 既にその数字があるか？
       const spans = div.querySelectorAll("span");
       let found = false;
+      isExistNumber = false;
 
       if ((currentMode == "copy") || (currentMode =="paste") || currentMode == "undo") return;
 
@@ -1050,6 +1059,7 @@
           }
 
           found = true;
+          isExistNumber = true;
         }
       });
 
@@ -1060,7 +1070,7 @@
           // saveUndo("toggle",)
         // 数値をマス上に表示
         // この関数内で、spanを作成し、更新している。ここでは、既存の数値がない場合の処理なので。
-          handleNumber(num); 
+          handleNumber(num, isExistNumber); 
         }
       } 
 
@@ -1415,10 +1425,12 @@
     // 配列への登録は、既存spanにデータの存在は関係ない。データが存在しない場合、数値は次に設定に値を、xy現在選択セルから情報を取得すればいい。
     // 多分読み出し時に影響があるのだろう。
     // function saveUndo(actiontype, e) {
-    function saveUndo(actiontype, span) {
 
+    // function saveUndo(actiontype, span) {
+    function saveUndo(actiontype, span, isExistNum = true, num) {
+
+      // console.count("--- saveUndoが呼ばれた回数");
       const cell = span.closest('.cell');
-
 
       // undoStack = [];
       // 配列GC対応      
@@ -1446,7 +1458,9 @@
 
 
       undoStack.length = 0;
-      const action = actiontypeTable[actiontype];
+      // const action = actiontypeTable[actiontype];
+      const action = actiontypeTable.indexOf(actiontype);
+      
       if (actiontype  === "confirm") {
 
       // 例：{ type: 'gray-toggle', x: 3, y: 5, number: '4', prev: 'black' }
@@ -1472,14 +1486,32 @@
           })
         });
       } else if (actiontype  === "toggle") {
-        undoStack.push({
-          type: action,
-          x: Number(cell.dataset.x),
-          y: Number(cell.dataset.y),
-          // value: span.textContent !=="" ? Number(span.textContent) : 0,
-          value: Number(span.textContent),
-          className: classNameTable.indexOf(span.className)
-        });
+        if (!isExistNum){
+
+          // ====================================
+          // 【追加】数値が存在しなかった場合の処理
+          //  className=unused, value=存在しない数値
+          // ====================================
+          undoStack.push({
+            type: action,
+            x: Number(selectedCell.dataset.x),
+            y: Number(selectedCell.dataset.y),
+            // value: span.textContent !=="" ? Number(span.textContent) : 0,
+            value: Number(num),
+            className: classNameTable.indexOf("unused")
+          });
+        } else {
+          undoStack.push({
+            type: action,
+            x: Number(cell.dataset.x),
+            y: Number(cell.dataset.y),
+            // x: Number(selectedCell.dataset.x),
+            // y: Number(selectedCell.dataset.y),
+            // value: span.textContent !=="" ? Number(span.textContent) : 0,
+            value: Number(span.textContent),
+            className: classNameTable.indexOf(span.className)
+          });
+        }
       }
 
     }
@@ -1490,6 +1522,8 @@
     // saveUndo関数で登録した1つ前の処理に戻す。
     // 前の処理が、confirmで登録していたら、マス全体の数値を戻す。
     function undo() {
+      
+      // console.count("**** Undoが呼ばれた回数");
       const last = undoStack.pop();
       if (!last) return;
 
@@ -1530,7 +1564,12 @@
         const span = Array.from(cell.querySelectorAll('span'))
                           .find(s => Number(s.textContent) === last.value);
         if (span) {
-          span.className = classNameTable[last.className];
+          if (last.className === 0) {
+            // console.count("<<< undoでremoveした回数");
+            span.remove();
+          } else {
+            span.className = classNameTable[last.className];
+          }
         }
       }  
 
@@ -2051,7 +2090,7 @@
       localStorage.setItem("usePopup", on);
       location.reload(); 
     }
-    console.log("usePopup:", usePopup);
+    // console.log("usePopup:", usePopup);
 
     // 初期化
 
@@ -2098,17 +2137,17 @@
         initialize();   
         // populatePuzzleDropdown();     
 
-        startGame();
+        // startGame();
       } catch (err) {
         console.error(err);
       }
     });
 
-    function startGame() {
+    // function startGame() {
 
-      console.log("ゲーム開始");
+    //   console.log("ゲーム開始");
 
-    }
+    // }
 
 
     window.addEventListener('DOMContentLoaded',  async () => { 
