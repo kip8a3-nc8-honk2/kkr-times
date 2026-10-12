@@ -1,4 +1,4 @@
-const CACHE_NAME = "KakuroTime-v8.9";
+const CACHE_NAME = "KakuroTime-v8.10";
 
 const urlsToCache = [
   "./",
@@ -8,32 +8,44 @@ const urlsToCache = [
   "./icons/icon-512.png"
 ];
 
-// インストール
+// 1. インストール（初回読み込み時にファイルをキャッシュに保存）
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
     })
   );
+  // 新しいService Workerを待機させず、すぐに有効化する
+  self.skipWaiting();
 });
 
-// fetch
-self.addEventListener("fetch", event => {
-
-  // ★ ここが最重要
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      caches.match("/index.html")
-        .then(response => {
-          return response || fetch(event.request);
+// 2. アクティベート（古いバージョンのキャッシュ「v8.7」などを自動削除して整理）
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
         })
-    );
-    return;
-  }
+      );
+    })
+  );
+  // すべてのタブやホーム画面アプリにこの新しい挙動を即座に適用する
+  self.clients.claim();
+});
 
-  // 通常リソース
+// 3. フェッチ処理（機内モードでも確実にキャッシュを返す最重要パート）
+self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    caches.match(event.request).then(response => {
+      // キャッシュにデータ（index.html等）があれば、通信状態に関わらず即座にそれを返す
+      if (response) {
+        return response;
+      }
+      // 万が一キャッシュにないリソース（追加した画像など）があれば、ネットに読みに行く
+      return fetch(event.request);
+    })
   );
 });
