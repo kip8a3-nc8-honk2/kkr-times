@@ -137,58 +137,24 @@
       font-size: 14px;
     }
 
-    /* .keypad {
-      display: none;
-    } */
-
-    /* .board-wrapper {
-      overflow: auto;
-      height: calc(100vh - 60px);
-    } */
-
-    /* .mode-bar {
-      position: fixed;
-      bottom: 0;
-      height: 60px;
-      width: 100%;
-    } */
-
     .popup {
       position: fixed;
       /* position: absolute; */
       background: white;
-      /* border: 2px solid #444;
-      border-radius: 10px;
-      padding: 10px; */
       border: 2px solid #444;
       border-radius: 8px;
-      /* padding: 6px; */
       padding: 6px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.3);
       z-index: 20;   /* ← これを上にする */
-      /* z-index: 1000; */
-      /*z-index: 9999;
-      max-width: 90vw;
-      max-height: 80vh;
-      overflow: auto;     */ 
     }
 
     .popup button {
       width: 32px;
       height: 32px;
-      /* margin: 3px;
-      font-size: 16px; */
       margin: 1px;
       font-size: 14px;
-      /*border-radius: 50%;*/
       touch-action: manipulation;
     }
-
-    /* 不要では？ */
-    /*.popup button.fix {
-      background-color: #4da6ff;
-      color: white;
-    }*/
     
 /*  */
     .popup button.fix {
@@ -196,13 +162,11 @@
     }
 
     .popup button.black {
-      /* background-color: #ccc; */
       background-color: #8e9efa;
       /*border-radius: 50%;*/
     }
 
     .popup button.gray {
-      /* background-color: #ccc; */
       background-color: #888686;
     }
     
@@ -263,10 +227,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      /* background: rgba(0,0,0,0.5); */
       background: transparent;
-      /* border-radius: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.3); */ 
       pointer-events: none;
     }
 
@@ -276,7 +237,6 @@
       background: white;
       border: 1px solid #444;
       padding: 2px;
-      /* margin: 80px auto; */
       right: 10px;   /* ← 右に寄せる */
       top: 60px;     /* ← 上からの位置（調整OK） */
       width: 140px;
@@ -301,7 +261,6 @@
       align-items: center;
       gap: 6px;
       flex-wrap: nowrap;     /* ← 明示的に追加 */
-     /* overflow-x: auto;      /* ← はみ出したらスクロール */
     }
 
     #topControls {
@@ -309,8 +268,6 @@
       align-items: center;
       gap: 6px;
       flex-wrap: nowrap;     /* ← 明示的に追加 */
-      /* font-size: 8px; */
-     /* overflow-x: auto;      /* ← はみ出したらスクロール */
     }
 
     .hint-group {
@@ -339,7 +296,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.7</div>
+  <div class="version">v8.8</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -453,6 +410,27 @@
       "toggle"    // 1番
     ];
 
+
+    // 150問 × 81個の特殊マス ＝ 約12,150要素。余裕を持って20,000要素確保（わずか80KB）
+    const allStagesData = new Int32Array(20000); 
+
+    // 各問題のメタデータ（幅、高さ、配列内の開始位置、特殊マス数）を保持
+    const stageMetadata = {};
+
+    // ドロップダウンリスト（セレクトボックス）に表示するための問題番号リスト
+    let stageIdList = []; 
+
+    // ビットシフトの設定
+    const SHIFT_X      = 0;
+    const SHIFT_Y      = 5;
+    const SHIFT_TYPE   = 10;
+    const SHIFT_ACROSS = 11;
+    const SHIFT_DOWN   = 19;
+
+    const TYPE_BLOCK = 0;
+    const TYPE_CLUE  = 1;
+
+
     // =====================================================================
     // ** PCとスマホ共通 **                             
     // =====================================================================
@@ -557,16 +535,6 @@
     function numberAssumeModeON(span) {
 
       //  仮定モードON
-      //　盤面全体をメモリ上へ一時保存
-      // ？？？これ必要か？？？？
-      // saveBoardState();
-
-      // inAssumeMode = true;
-      
-      //e.target.classList.replace("black","red");
-
-      // toggleGrayAssumeMode(e);
-      // saveUndo("toggle", e);
       // 以下2つの関数（①toggleGrayAssumeMode、②saveUndo）で、両方の配列（assumedChangesとundoStack）にpushしている。
       // Q.両方の配列を持つ必要があるのか？
       // Q. 仮定モードONにしたとき（黒→赤）の時にも①の関数が呼ばれる。①は水色になる前だけ呼ばれるのでは？
@@ -578,29 +546,24 @@
       isAssumeMode = true;
       isInputMode = false;
 
-
     }
 
     //------------------------------------------------
     // 仮定モードOFFとなる数字クリック処理（赤⇔黒）
     function numberAssumeModeOFF(span) {
       
-      // if (span.classList.contains("red")) {
-        // saveUndo("toggle", e);
-        saveUndo("toggle", span);
-        span.classList.replace("red","black");
-        // 仮定モードONにする前の状態に戻す。
-        revertAssumeChanges();
-        // inAssumeMode = false;
-        // clearHypothetical();
-        //読み込んだ時に仮定モードになっていた場合、水色の所を黒に戻す。
-        if (isAssumeCyan) {
-          revertLoadCyanChange();
-          // isAssumeCyan = false;
-        }
-        // isAssumeMode = false;
-        // isInputMode = true;
-      // }
+      // saveUndo("toggle", e);
+      saveUndo("toggle", span);
+      span.classList.replace("red","black");
+      // 仮定モードONにする前の状態に戻す。
+      revertAssumeChanges();
+      // inAssumeMode = false;
+      // clearHypothetical();
+      //読み込んだ時に仮定モードになっていた場合、水色の所を黒に戻す。
+      if (isAssumeCyan) {
+        revertLoadCyanChange();
+        // isAssumeCyan = false;
+      }
 
     }    
 
@@ -630,7 +593,6 @@
     function closePopup() {
       document.getElementById("cellPopup")
               .classList.add("hidden");
-      // selectedCell.classList.remove("selected");
       if (selectedCell) selectedCell.classList.remove("selected");
 
     }
@@ -645,20 +607,9 @@
       const popupHeight = 250;
 
       let html = "";
-      // let finalNumbers = [];
-      // let candidateNumbers = [];
-
-      // let fixNumbers = [];
-      // let blackNumbers = [];
-      // let grayNumbers = [];
-      // let cyanNumbers = [];
-      // let redNumbers = [];
-      // let whiteNumbers = [];
       let displayValue = "";
 
       if (!usePopup) return;
-
-      // updateModeButtons();
 
       spans.forEach(span => {
         const value = span.textContent;
@@ -677,7 +628,6 @@
 
       if (left + popupWidth > window.innerWidth) {
         left = window.innerWidth - popupWidth - 10;
-
       }
     
 
@@ -713,9 +663,6 @@
           btn.classList.add("active-mode-sub");
         }
 
-        // if (btn.dataset.mode === currentMode) {
-        //   btn.classList.add("active-mode");
-        // }
       });      
       
     }
@@ -737,10 +684,6 @@
     function setMode(mode) {
       // window.inputMode = mode;
       let subMode = null;
-
-      // if ((mode == "undo") || (mode == "copy")) {
-      //   beforeMode = currentMode;        
-      // }
 
       if (selectedAssume) {
         if ((mode == "candidate") || (mode == "input") || (mode == "copy") || (mode == "paste")) {
@@ -795,7 +738,6 @@
         updatePopupNumbers(selectedCell);    
       }
       
-      // currentMode = beforeMode;
       updateModeButtons();
     }
 
@@ -871,14 +813,7 @@
       
       const numberArea = document.querySelector(".popup-numbers");
       const spans = div.querySelectorAll("span");
-      
 
-      // let fixNumbers = [];
-      // let blackNumbers = [];
-      // let grayNumbers = [];
-      // let cyanNumbers = [];
-      // let redNumbers = [];
-      // let whiteNumbers = [];
 
       fixNumbers.length = 0;
       blackNumbers.length = 0;
@@ -888,29 +823,6 @@
       whiteNumbers.length = 0;
 
       // spanを見て、マスに設定されている数値を取得し、candidateNumbersに設定①
-      // spans.forEach(span => {
-      //   const value = span.textContent;
-      
-      //　【GC対策】ポップアップのGC削減
-      //　【修正前】 
-      // 9個のボタンを巡回してクラス（名）を上書きするだけ　
-      // 
-      //   if (span.classList.contains("fixed")) {
-      //     fixNumbers.push(value);
-      //   } else if (span.classList.contains("black")) {
-      //     blackNumbers.push(value);     
-      //   } else if (span.classList.contains("gray")) {
-      //     grayNumbers.push(value);       
-      //   } else if (span.classList.contains("cyan")) {
-      //     cyanNumbers.push(value);
-      //   } else if (span.classList.contains("red")){
-      //     redNumbers.push(value);
-      //   } else if (span.classList.contains("white")){
-      //     whiteNumbers.push(value);
-      //   }
-
-      // });
-
       //　【修正後】 
       spans.forEach(span => {
         const value = span.textContent;
@@ -924,58 +836,6 @@
 
 
       // 【劇的改善】innerHTML = "" や createElement を全削除！
-      // 【修正前】
-      // すでに画面にある9個のボタンをループで取得してクラス名（色）だけを更新する
-
-      //  ポップアップ上に数値を表示
-      // numberArea.innerHTML = "";
-      // ①のcandidateNumersに設定済の数値のボタンに対し、classNameをcandidateと設定。これにより、ボタンが濃い色で表示
-
-      // for (let i = 1; i <= 9; i++) {
-      //   const btn = document.createElement("button");
-
-      //   let className = "";
-
-      //   if (fixNumbers.includes(String(i))) {
-      //     className = "fix";
-      //   }
-      //   else if (blackNumbers.includes(String(i))) {
-      //     className = "black";
-      //   }
-      //   else if (grayNumbers.includes(String(i))) {
-      //     className = "gray";
-      //   }
-      //   else if (cyanNumbers.includes(String(i))) {
-      //     className = "cyan";
-      //   }
-      //   else if (redNumbers.includes(String(i))) {
-      //     className = "red";
-      //   }
-      //   else if (whiteNumbers.includes(String(i))) {
-      //     className = "white";
-      //   }
-
-
-      //   btn.className = className;
-      //   btn.textContent = i;     // 数値ボタンにiを設定
-      //   // 数値ボタンがクリックされたときに、行う処理を予め登録しておく。
-      //   btn.onclick = function(event) {       
-      //     // eventが発生した場合、以下の処理を行うようボタンに登録しておく。
-      //     // つまり、この関数に入ってきたときに、イベントが発生していたら、以下の２つの処理をするのではない。
-      //     // あくまで、もしイベントが発生した時には、この処理を行うんだよ！と事前に登録しておくだけの処理
-      //     //  例、もし5のボタンが押されたら、「selecteMumber(i);とevent.stopPropagation();を行うこと」、ボタン5登録しておく。
-         
-      //     // 事前に数値ボタンに登録する処理は、以下の①②
-      //     // ①数値選択の処理
-      //     selectNumber(i);
-          
-      //     // ②親側のクリック処理まで伝えない
-      //     event.stopPropagation();
-      //   };
-
-      //   numberArea.appendChild(btn);  // ボタンエリアに数値ボタンを設定(ボタン１個表示)。
-
-      // 【修正後】
       // すでに画面にある9個のボタンをループで取得してクラス名（色）だけを更新する
       for (let i = 1; i <= 9; i++) {
         // 既存のボタンを data 属性からピンポイントで取得
@@ -1204,6 +1064,47 @@
 
     //------------------------------------------------  
     //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
+    // document.addEventListener("click", function(e) {
+   
+    //   // HTMLドキュメント内の要素を検索し、クラス名が.popupの最初の要素(Element)を取得
+    //   const popup = document.querySelector(".popup");
+    //   const hintPopup = document.querySelector(".hint-content");
+      
+    //   if (!usePopup) return;
+
+    //   if (!popup) return;
+
+    //   // console.log("bef popupの中をクリックした場合");
+    //   // popupの中をクリックした場合は何もしない
+    //   // if (popup.contains(e.target)) return;
+
+    //   // popupの中、または、ヒントポップアップをクリックした場合は何もしない
+    //   if ((popup.contains(e.target)) || (hintPopup.contains(e.target))) {
+    //     return;
+    //   }
+
+    //   // console.log("bef 盤面の通常セルをクリックした場合");
+    //   // 盤面の通常セルをクリックした場合も何もしない
+    //   if (e.target.classList.contains("cell")) {
+    //     // 黒マスをクリックする場合は除外（クローズ処理）
+    //     // 黒マス＝classListに"cell"と"clue"が設定されている
+    //     if (!e.target.classList.contains("clue")) return;
+    //   }
+      
+    //   // 選択中のセルをクリックした場合も何もしない
+    //   // if (e.target.classList.contains("cell")) return;
+    //   // 選択中のセルをクリックした場合も何もしない
+    //   const cell = e.target.closest('.cell');
+    //   if (cell == selectedCell) return;
+
+    //   closePopup(); 
+      
+    //   selectedCell = null;
+
+    // });
+
+    //------------------------------------------------  
+    //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
     document.addEventListener("click", function(e) {
    
       // HTMLドキュメント内の要素を検索し、クラス名が.popupの最初の要素(Element)を取得
@@ -1214,35 +1115,36 @@
 
       if (!popup) return;
 
-      // console.log("bef popupの中をクリックした場合");
-      // popupの中をクリックした場合は何もしない
-      // if (popup.contains(e.target)) return;
-
       // popupの中、または、ヒントポップアップをクリックした場合は何もしない
-      if ((popup.contains(e.target)) || (hintPopup.contains(e.target))) {
+      if ((popup.contains(e.target)) || (hintPopup && hintPopup.contains(e.target))) {
         return;
       }
 
-      // console.log("bef 盤面の通常セルをクリックした場合");
-      // 盤面の通常セルをクリックした場合も何もしない
-      if (e.target.classList.contains("cell")) {
-        // 黒マスをクリックする場合は除外（クローズ処理）
-        // 黒マス＝classListに"cell"と"clue"が設定されている
-        if (!e.target.classList.contains("clue")) return;
-      }
-      
-      // 選択中のセルをクリックした場合も何もしない
-      // if (e.target.classList.contains("cell")) return;
-      // 選択中のセルをクリックした場合も何もしない
+      // 🌟 【最適入れ替え】クリックされた要素からマス（.cell）を特定する
       const cell = e.target.closest('.cell');
-      if (cell == selectedCell) return;
 
+      // 🌟 もしマス（.cell）がクリックされた場合の処理
+      if (cell) {
+        // 黒マス、またはヒントマスをクリックした場合は、ポップアップを閉じずに何もせず終了する（クローズ処理除外）
+        // ※ヒントマス(clue)または黒マス(block)のクラス名があるか判定
+        if (cell.classList.contains("clue") || cell.classList.contains("block")) {
+          return;
+        }
+
+        // 選択中のセルをクリックした場合も何もしない
+        if (cell == selectedCell) return;
+
+        // 🌟 【新規追加】既存のガード句（return）をすべてすり抜けた ＝「新しく選択すべき通常セル」
+        // ポップアップを閉じる前に、次のセルを選択する処理を実行します！
+        selectCell(cell, e);
+        return; // 通常セル選択の処理が完了したため、ここでイベント処理を終了
+      }
+
+      // 🌟 盤面以外の「完全な外側」をクリックした場合は、既存通りポップアップを閉じて選択をクリア
       closePopup(); 
-      
       selectedCell = null;
 
     });
-
 
     //------------------------------------------------
     //  ヒントのshowボタン（盤面の真上）押下時の処理 
@@ -1401,22 +1303,6 @@
     }
 
 
-    // //------------------------------------------------
-    // //  仮定モードONになった時に、盤面全体を一時保存
-    // function saveBoardState() {
-    //   savedState = {};
-    //   document.querySelectorAll('.cell').forEach(cell => {
-    //     const x = cell.dataset.x;
-    //     const y = cell.dataset.y;
-    //     const spans = Array.from(cell.querySelectorAll('span'));
-    //     savedState[`${x},${y}`] = spans.map(span => ({
-    //       value: span.textContent,
-    //       isGray: span.classList.contains('gray')
-    //     }));
-    //   });
-    // }
-
-
     //------------------------------------------------
     // 1つ前の処理保存
     // undoStackに登録。　actiontypeがconfirmの時は、マスに入っている全ての数字を登録しし、それ以外の時は、特定の数字のみ登録
@@ -1432,31 +1318,6 @@
       // console.count("--- saveUndoが呼ばれた回数");
       const cell = span.closest('.cell');
 
-      // undoStack = [];
-      // 配列GC対応      
-      // if (actiontype  == "confirm") {
-
-      // 例：{ type: 'gray-toggle', x: 3, y: 5, number: '4', prev: 'black' }
-        // undoStack.push({
-        //   type: actiontype,
-        //   x: cell.dataset.x,
-        //   y: cell.dataset.y,
-        //   before: Array.from(cell.querySelectorAll('span')).map(span => ({
-        //     value: span.textContent,
-        //     className: span.className       
-        //   }))
-        // });
-      // } else if (actiontype  == "toggle") {
-      //   undoStack.push({
-      //     type: actiontype,
-      //     x: cell.dataset.x,
-      //     y: cell.dataset.y,
-      //     value: span.textContent,
-      //     className: span.className
-      //   });
-      // }
-
-
       undoStack.length = 0;
       // const action = actiontypeTable[actiontype];
       const action = actiontypeTable.indexOf(actiontype);
@@ -1471,17 +1332,8 @@
           before: Array.from(cell.querySelectorAll('span')).map(span => {
             const cid = classNameTable.indexOf(span.className);
             return {
-              // 三項演算子(?:)
-              // 条件式 ?　trueの時の処理 : falseの時の処理
-              // textContentが空文字でなければ、処理Number(span.textContent)を、空文字ならば0を入れる
-              // value: span.textContent !=="" ? Number(span.textContent) : 0,
-              // cidが-1でなければ、cidを入れ、cid==-1なら0を入れる
-              // className: cid !== -1 ? cid: 0
-              // 
               value: Number(span.textContent),
               className: cid
-              
-
             };
           })
         });
@@ -1490,7 +1342,7 @@
 
           // ====================================
           // 【追加】数値が存在しなかった場合の処理
-          //  className=unused, value=存在しない数値
+          //  className=unused, value=存在しない数値を設定
           // ====================================
           undoStack.push({
             type: action,
@@ -1530,25 +1382,6 @@
       const cell = document.querySelector(`.cell[data-x="${last.x}"][data-y="${last.y}"]`);
       const actiontype = actiontypeTable[last.type];
       
-      // if (last.type === "confirm") {
-      //   // マス全体を戻す
-      //   cell.innerHTML = "";
-      //   last.before.forEach(d => {
-      //     const span = document.createElement("span");
-      //     span.textContent = d.value;
-      //     span.classList.add(d.className);
-      //     cell.appendChild(span);
-      //   });
-
-      // } else if (last.type === "toggle") {
-      //   // 特定の数字の色だけ戻す
-      //   const span = Array.from(cell.querySelectorAll('span'))
-      //                     .find(s => s.textContent === last.value);
-      //   if (span) {
-      //     span.className = last.className;
-      //   }
-      // } 
-      
       if (actiontype == "confirm") {
         // マス全体を戻す
         cell.innerHTML = "";
@@ -1585,16 +1418,6 @@
       if (!isAssumeMode) return;
 
       const cell = span.closest('.cell');
-      // 配列GC対応
-      // const x = cell.dataset.x;
-      // const y = cell.dataset.y;
-
-      // assumedChanges.push({
-      //   x, y,
-      //   value: span.textContent,
-      //   previousClass: span.className
-      // });
-
       const x = Number(cell.dataset.x);
       const y = Number(cell.dataset.y);
 
@@ -1791,13 +1614,6 @@
                 updateModeButtons();
               }
             } else if (span.classList.contains("cyan")) {
-
-                    // 配列GC対応     
-              // uploadCyan.push({
-              //   x, y,
-              //   value: span.textContent,
-              //   loadClass: d.className
-              // })
               uploadCyan.push({
                 x: Number(x),
                 y: Number(y),
@@ -1843,26 +1659,102 @@
 
     //------------------------------------------------ 
     // Create Board Mesh X x Y
+    // function createplayboard(puzzleNo) {
+
+
+    //   // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
+    //   // 【改善】キープしておいた生テキスト（文字列）から、150問全部ではなく、「選ばれた1問分の文字列だけ」をピンポイントでパース！
+    //   // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
+    //   const puzzle = JSON.parse(puzzleTextMap[puzzleNo]);
+    //   const cells = puzzle["cells"];
+
+    //   boardWidth = puzzle["width"];
+    //   boardHeight = puzzle["height"];
+
+    //   // 確仮ボタン追加
+    //   window.inputMode = "candidate";   
+
+    //   isAssumeMode = false;
+    //   if (usePopup) {
+    //     currentMode = "input";
+    //     selectedAssume = null;
+    //     setMode(currentMode);
+    //     updateModeButtons();
+    //   }
+      
+    //   const board = document.getElementById('grid');
+    //   board.innerHTML = ''; // ★ 既存の盤面をクリア
+
+    //   for (let y = 0; y < boardHeight; y++) {
+    //     for (let x = 0; x < boardWidth; x++) {
+
+    //       const div = document.createElement("div");
+    //       div.className = "cell";
+    //       div.dataset.x = x;
+    //       div.dataset.y = y;
+
+    //       // クリック処理の登録：
+    //       // 　クリックイベントが発生したら、selectCell関数を実行するように予め登録しておく
+    //       // 　実際にクリックが発生したら、直接selectCell関数が実行される。
+    //       div.onclick = (e) => selectCell(div, e);  
+    //       // div.ondblclick = (e) => toggleGray(e);    // ダブルクリック処理
+    //       grid.appendChild(div);
+          
+
+    //       // const key = `${x},${y}`;
+    //       const cluse = cells.find(c => c.x === x && c.y === y);
+
+    //   //    if (clues[key]) {
+    //       if (!cluse) {
+    //         // 通常の白マス
+    //         div.className = 'cell';
+    //       } else {
+    //         if (cluse["type"]) {
+    //           div.className = 'cell clue';
+              
+    //           // 横合計（右上）
+    //           if (cluse["across"] !== undefined) {
+    //             const clueRight = document.createElement('div');
+    //             clueRight.className = 'clue-right';
+    //             clueRight.textContent = cluse["across"];
+    //             div.appendChild(clueRight);
+    //             isSlash = true;
+    //           }
+
+    //           // 縦合計（左下）
+    //           if (cluse["down"] !== undefined) {
+
+    //             const clueDown = document.createElement('div');
+    //             clueDown.className = 'clue-down';
+    //             clueDown.textContent = cluse["down"];
+    //             div.appendChild(clueDown);
+    //             isSlash = true;
+    //           }
+    //           if (isSlash) {
+    //             // 斜め線
+    //             const slash = document.createElement('div');
+    //             slash.className = 'slash';
+    //             div.appendChild(slash);
+    //             isSlash = false;
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+
+    // }
     function createplayboard(puzzleNo) {
+      // 🌟 1. メタデータから、選択された問題の幅・高さ・開始位置などを一瞬で取得
+      const meta = stageMetadata[puzzleNo];
+      if (!meta) return;
 
-      // GC改善：問題データの所持方法
-      // 【改善前】
-      // const puzzle = allpuzzle[puzzleNo];
-      // const cells = puzzle["cells"];
+      boardWidth = meta.width;
+      boardHeight = meta.height;
+      const startOffset = meta.start;
+      const specialCellCount = meta.length;
 
-
-      // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
-      // 【改善】キープしておいた生テキスト（文字列）から、150問全部ではなく、「選ばれた1問分の文字列だけ」をピンポイントでパース！
-      // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
-      const puzzle = JSON.parse(puzzleTextMap[puzzleNo]);
-      const cells = puzzle["cells"];
-
-      boardWidth = puzzle["width"];
-      boardHeight = puzzle["height"];
-
-      // 確仮ボタン追加
+      // 確仮ボタン追加（既存のロジックを維持）
       window.inputMode = "candidate";   
-
       isAssumeMode = false;
       if (usePopup) {
         currentMode = "input";
@@ -1872,8 +1764,28 @@
       }
       
       const board = document.getElementById('grid');
-      board.innerHTML = ''; // ★ 既存の盤面をクリア
+      board.innerHTML = ''; // 既存の盤面をクリア
 
+      // 🌟 2. プレイ中に高速で座標検索できるように、このステージの特殊マス（block, clue）だけを一時的にMapに登録
+      // ※cells.findで毎回ループを回すより圧倒的に速く、メモリもこの関数内だけで自動解放されます
+      const specialCellsMap = new Map();
+
+      for (let i = 0; i < specialCellCount; i++) {
+        // 32ビット整数を1つ取得
+        const data = allStagesData[startOffset + i];
+
+        // ビットをずらして情報を復元
+        const x      = (data >> SHIFT_X) & 0x1F;      // 5ビット
+        const y      = (data >> SHIFT_Y) & 0x1F;      // 5ビット
+        const type   = (data >> SHIFT_TYPE) & 0x01;   // 1ビット（0: block, 1: clue）
+        const across = (data >> SHIFT_ACROSS) & 0xFF; // 8ビット
+        const down   = (data >> SHIFT_DOWN) & 0xFF;   // 8ビット
+
+        // 座標文字列（"x,y"）をキーにして、ビット展開した情報を記憶
+        specialCellsMap.set(`${x},${y}`, { type, across, down });
+      }
+
+      // 🌟 3. 盤面の描画ループ
       for (let y = 0; y < boardHeight; y++) {
         for (let x = 0; x < boardWidth; x++) {
 
@@ -1882,70 +1794,91 @@
           div.dataset.x = x;
           div.dataset.y = y;
 
-          // クリック処理の登録：
-          // 　クリックイベントが発生したら、selectCell関数を実行するように予め登録しておく
-          // 　実際にクリックが発生したら、直接selectCell関数が実行される。
-          div.onclick = (e) => selectCell(div, e);  
-          // div.ondblclick = (e) => toggleGray(e);    // ダブルクリック処理
-          grid.appendChild(div);
-          
+          // ⚠️ 【メモリ最適化】
+          // すでに document.addEventListener でクリックを監視（イベント委譲）されているため、
+          // ここでの「div.onclick = ...」の81回〜200何回もの関数生成・登録は完全に削除します。
+          // これにより、盤面生成時のメモリ消費がさらに数分の一に減ります。
 
-          // const key = `${x},${y}`;
-          const cluse = cells.find(c => c.x === x && c.y === y);
+          board.appendChild(div); // ※grid.appendChildからboard.appendChildに安全のため統一しています
 
-      //    if (clues[key]) {
-          if (!cluse) {
-            // 通常の白マス
+          // 🌟 4. Mapから一瞬で該当座標の特殊マス情報を取得（無駄なループが発生しません）
+          const specialCell = specialCellsMap.get(`${x},${y}`);
+
+          if (!specialCell) {
+            // 通常の空白マス（白）
             div.className = 'cell';
           } else {
-            if (cluse["type"]) {
-              div.className = 'cell clue';
+            // 🌟 特殊マスの処理
+            if (specialCell.type === TYPE_BLOCK) {
+              // 【修正ポイント】黒マス（block）のときも、ご自身のCSSで黒塗りになるクラス名を設定します！
+              // これで、ヒントマスと全く同じ綺麗な黒塗りが適用されます。
+              div.className = 'cell clue'; 
               
-              // 横合計（右上）
-              if (cluse["across"] !== undefined) {
+            } else if (specialCell.type === TYPE_CLUE) {
+              // ヒントマスの処理（現状正しく動いている既存ロジック）
+              div.className = 'cell clue';
+              let isSlash = false;
+              
+              if (specialCell.across > 0) {
                 const clueRight = document.createElement('div');
                 clueRight.className = 'clue-right';
-                clueRight.textContent = cluse["across"];
+                clueRight.textContent = specialCell.across;
                 div.appendChild(clueRight);
                 isSlash = true;
               }
 
-              // 縦合計（左下）
-              if (cluse["down"] !== undefined) {
-
+              if (specialCell.down > 0) {
                 const clueDown = document.createElement('div');
                 clueDown.className = 'clue-down';
-                clueDown.textContent = cluse["down"];
+                clueDown.textContent = specialCell.down;
                 div.appendChild(clueDown);
                 isSlash = true;
               }
+
               if (isSlash) {
-                // 斜め線
                 const slash = document.createElement('div');
                 slash.className = 'slash';
                 div.appendChild(slash);
-                isSlash = false;
               }
             }
           }
         }
       }
-
     }
-
 
     //------------------------------------------------
     // パズル番号選択のためのドロップダウンリストの表示文字列を作成 
-    function populatePuzzleDropdown() {
-      const select = document.getElementById('puzzleSelect');
-      allpuzzlekey.forEach(num => {
-        const option = document.createElement('option');
-        option.value = num;
-        option.textContent = `${num}`;
-        select.appendChild(option);
-      });
+    // function populatePuzzleDropdown() {
+    //   const select = document.getElementById('puzzleSelect');
+    //   allpuzzlekey.forEach(num => {
+    //     const option = document.createElement('option');
+    //     option.value = num;
+    //     option.textContent = `${num}`;
+    //     select.appendChild(option);
+    //   });
 
-       select.value = String(selectedPuzzleNo);
+    //    select.value = String(selectedPuzzleNo);
+    // }
+
+    function updateDropdownUI() {
+      // const select = document.getElementById("stage-select"); // HTML側の<select>要素
+      const select = document.getElementById("puzzleSelect"); // HTML側の<select>要素
+     select.innerHTML = ""; // クリア
+
+      stageIdList.forEach(id => {
+          const option = document.createElement("option");
+          option.value = id;
+          option.textContent = `${id}`;
+          select.appendChild(option);
+      });
+      
+      // // ユーザーがドロップダウンを変更したときのイベント
+      // select.addEventListener("change", function(e) {
+      //     displayStage(e.target.value);
+      // });
+
+      select.value = String(selectedPuzzleNo);
+
     }
 
 
@@ -1981,7 +1914,7 @@
       hint.addEventListener("touchstart", (e) => {
         isDragging = true;
         startY = e.touches[0].clientY;
-
+      select.value = String(selectedPuzzleNo);
         // GPUモード対応
         // 位置計算方法の改善
         // 【劇的改善】getBoundingClientRect()の代わりに、現在のtransformの値を安全に取得する
@@ -2004,19 +1937,6 @@
         // let newTop = startTop + deltaY;
         let newTransformY = currentTransformY + deltaY;
 
-        // GPUモード対応
-        // 修正前
-        // const maxTop = window.innerHeight - hint.offsetHeight - 10;
-        // const minTop = 10;
-
-        // if (newTop < minTop) newTop = minTop;
-        // if (newTop > maxTop) newTop = maxTop;
-
-        // hint.style.top = newTop + "px";
-        // 修正後
-        // 【画面外はみ出しガードの調整】
-        // 基準位置（初期位置）からの移動量で制限をかけます
-        // ※もしガードの効きが強すぎる、または弱い場合は、ここの数値を少し微調整してください
         const baseTop = hint.offsetTop; // 初期配置のTop位置
         const maxMoveY = window.innerHeight - hint.offsetHeight - baseTop - 10;
         const minMoveY = 10 - baseTop;
@@ -2025,7 +1945,7 @@
         if (newTransformY > maxMoveY) newTransformY = maxMoveY;
 
         // 【劇的改善】style.topの代わりに、GPU（transform）を使って移動！
-        // 1秒間に60回動かしても、メインメモリを1バイトも汚さず、超軽量に滑らかに動きます
+        // 1秒間に60回動かしても、メインメモリを1バイトも汚さず、超軽量に滑らかに動く
         hint.style.transform = `translateY(${newTransformY}px)`;
         
         // 画面の不要なスクロール（バウンスなど）を防止する
@@ -2042,7 +1962,7 @@
     //------------------------------------------------
     //  
     function initialize() {
-      selectedPuzzleNo = allpuzzlekey[0]
+      selectedPuzzleNo = stageIdList[0]
 
       // ポップアップモードボタンの初期化
       initPopupModes();
@@ -2055,10 +1975,96 @@
       initHintUI();
 
       // パズル番号ドロップダウン
-      populatePuzzleDropdown();     
+      // populatePuzzleDropdown();     
+      updateDropdownUI()
 
       createplayboard(selectedPuzzleNo);
     }
+
+
+    //------------------------------------------------
+    //  ファイル読み込みボタン押下時の処理
+    function handleFileSelect(fileText) {
+        let globalOffset = 0;
+        stageIdList = []; // 初期化
+
+        // テキストを1行ずつに分割する
+        const lines = fileText.split(/\r?\n/);
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+
+            // 空行や、ファイルの最初と最後のカッコ「{」「}」だけの行はスキップ
+            if (!line || line === "{" || line === "}") continue;
+
+            // 行末のカンマ「,」を削除して、有効なJSONオブジェクトの形にする
+            if (line.endsWith(",")) {
+                line = line.slice(0, -1);
+            }
+
+            // 1行分のJSON（例： "1": {"width": 13, "height": 10, ...} ）をパースするために
+            // 前後に仮のカッコをつけて完全なJSON形式にする
+            let parsedLine = null;
+            try {
+                parsedLine = JSON.parse("{" + line + "}");
+            } catch (e) {
+                console.error("行のパースに失敗しました（スキップします）:", line);
+                continue;
+            }
+
+            // パースしたオブジェクトから、問題番号（キー）を取得
+            const stageKeys = Object.keys(parsedLine);
+            if (stageKeys.length === 0) continue;
+            
+            const stageKey = stageKeys[0]; // 例: "1"
+            let stage = parsedLine[stageKey]; // その問題のデータ
+            let specialCellCount = stage.cells.length;
+
+            // 🌟 1. ドロップダウン用の問題番号を記録
+            stageIdList.push(stageKey);
+
+            // 🌟 2. メタデータを記録
+            stageMetadata[stageKey] = {
+                width: stage.width,
+                height: stage.height,
+                start: globalOffset,
+                length: specialCellCount
+            };
+
+            // 🌟 3. 特殊マスを1つずつ32bit整数に圧縮して型付き配列に格納
+            for (let c = 0; c < specialCellCount; c++) {
+                let cell = stage.cells[c];
+                let compressedInt = 0;
+
+                compressedInt |= (cell.x << SHIFT_X);
+                compressedInt |= (cell.y << SHIFT_Y);
+
+                let type = (cell.type === "clue") ? TYPE_CLUE : TYPE_BLOCK;
+                compressedInt |= (type << SHIFT_TYPE);
+
+                if (cell.across !== undefined) compressedInt |= (cell.across << SHIFT_ACROSS);
+                if (cell.down !== undefined)    compressedInt |= (cell.down << SHIFT_DOWN);
+
+                // 巨大な型付き配列に直接書き込む
+                allStagesData[globalOffset + c] = compressedInt;
+            }
+
+            // 次の問題のためにオフセットを進める
+            globalOffset += specialCellCount;
+
+            // 【最重要】この行のパースオブジェクトを即座に完全破棄
+            // ループのたびにメモリが完全にクリーンアップされます
+            parsedLine = null;
+            stage = null;
+        }
+
+        // 🌟 4. 全問題の読み込み完了後、UIを更新
+        updateDropdownUI(); // ドロップダウンリストを生成
+        // displayStage(stageIdList[0]); // 1問目の盤面を表示
+    }
+
+
+
 
 
     // --------------------------------------------------
@@ -2094,60 +2100,69 @@
 
     // 初期化
 
-    //HTMLの部品(ファイルの読み込みボタン（jsonFileInpu)）を取得
+    // //HTMLの部品(ファイルの読み込みボタン（jsonFileInpu)）を取得
+    // const fileInput = document.getElementById("jsonFileInput");
+
+    // //　ファイルを選択したら実行
+    // fileInput.addEventListener("change", async (event) => {
+
+    //   // 選択ファイルの取得
+    //   const file = event.target.files[0];
+
+    //   if (!file) return;
+
+    //   try {
+    //     // ファイル内容読み込み
+    //     const text = await file.text();
+
+    //     // 起動時に1回だけ全体をパース（これは一時的な変数なので後で消えます）  
+    //     const tempAllPuzzle = JSON.parse(text);
+    //     numallpuzzle = Object.keys(tempAllPuzzle).length;
+    //     allpuzzlekey = Object.keys(tempAllPuzzle);
+
+    //     // 【ここがポイント】150問のデータを、それぞれ「文字列（JSON）」に再変換してバラバラに保管
+    //     // オブジェクトで持つより、ただの文字列として持つ方が圧倒的にメモリが軽くなる
+    //     allpuzzlekey.forEach(key => {
+    //       puzzleTextMap[key] = JSON.stringify(tempAllPuzzle[key]);
+    //     });
+
+    //     // 最初の問題を設定
+    //     puzzle = tempAllPuzzle[allpuzzlekey[0]];
+
+
+    //     // 初期化
+    //     initialize();   
+    //     // populatePuzzleDropdown();     
+
+    //   } catch (err) {
+    //     console.error(err);
+    //   }
+    // });
+
+
+        // HTMLの部品(ファイルの読み込みボタン（jsonFileInput)）を取得
     const fileInput = document.getElementById("jsonFileInput");
 
-    //　ファイルを選択したら実行
+    // ファイルを選択したら実行（async を忘れずにつけておきます）
     fileInput.addEventListener("change", async (event) => {
-
       // 選択ファイルの取得
       const file = event.target.files[0];
-
       if (!file) return;
 
       try {
-        // ファイル内容読み込み
-        const text = await file.text();
+        // 🌟 1. ファイルからテキスト内容をしっかり「待って（await）」読み込む
+        // ※ text() は関数なので後ろにカッコ「()」が必要です
+        const fileText = await file.text();
 
-        // GC改善：問題データの所持方法
-        // // JSON化
-        // allpuzzle = JSON.parse(text);
-
-        // numallpuzzle = Object.keys(allpuzzle).length;
-        // allpuzzlekey = Object.keys(allpuzzle);
-        // puzzle = allpuzzle[allpuzzlekey[0]];
-
-
-        // 起動時に1回だけ全体をパース（これは一時的な変数なので後で消えます）  
-        const tempAllPuzzle = JSON.parse(text);
-        numallpuzzle = Object.keys(tempAllPuzzle).length;
-        allpuzzlekey = Object.keys(tempAllPuzzle);
-
-        // 【ここがポイント】150問のデータを、それぞれ「文字列（JSON）」に再変換してバラバラに保管
-        // オブジェクトで持つより、ただの文字列として持つ方が圧倒的にメモリが軽くなります
-        allpuzzlekey.forEach(key => {
-          puzzleTextMap[key] = JSON.stringify(tempAllPuzzle[key]);
-        });
-
-        // 最初の問題を設定
-        puzzle = tempAllPuzzle[allpuzzlekey[0]];
-
-
-        // 初期化
+        // 🌟 2. 読み込んだテキスト文字列を handleFileSelect 関数へ引き渡す
+        handleFileSelect(fileText);
         initialize();   
-        // populatePuzzleDropdown();     
 
-        // startGame();
       } catch (err) {
-        console.error(err);
+        // ファイル自体の読み込み（破損など）で失敗した場合のガード
+        console.error("ファイル読み込みエラー:", err);
       }
     });
-
-    // function startGame() {
-
-    //   console.log("ゲーム開始");
-
-    // }
 
 
     window.addEventListener('DOMContentLoaded',  async () => { 
