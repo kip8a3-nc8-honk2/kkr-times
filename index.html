@@ -296,7 +296,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.8</div>
+  <div class="version">v8.9</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -419,6 +419,7 @@
 
     // ドロップダウンリスト（セレクトボックス）に表示するための問題番号リスト
     let stageIdList = []; 
+    let isHintJustDragged = false;
 
     // ビットシフトの設定
     const SHIFT_X      = 0;
@@ -1107,39 +1108,62 @@
     //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
     document.addEventListener("click", function(e) {
    
+
+      // 🌟【新規追加ガード】ヒントポップアップを指（ポインター）でドラッグ移動した直後の時間差クリックなら、
+      // 誤作動（closePopupの暴発やConsoleエラー）を防ぐために何もせず即 return します。
+      if (isHintJustDragged) return;
+
       // HTMLドキュメント内の要素を検索し、クラス名が.popupの最初の要素(Element)を取得
       const popup = document.querySelector(".popup");
       const hintPopup = document.querySelector(".hint-content");
       
       if (!usePopup) return;
-
       if (!popup) return;
 
       // popupの中、または、ヒントポップアップをクリックした場合は何もしない
-      if ((popup.contains(e.target)) || (hintPopup && hintPopup.contains(e.target))) {
+      if (popup.contains(e.target) || (hintPopup && hintPopup.contains(e.target))) {
         return;
       }
 
       // 🌟 【最適入れ替え】クリックされた要素からマス（.cell）を特定する
       const cell = e.target.closest('.cell');
 
-      // 🌟 もしマス（.cell）がクリックされた場合の処理
-      if (cell) {
-        // 黒マス、またはヒントマスをクリックした場合は、ポップアップを閉じずに何もせず終了する（クローズ処理除外）
-        // ※ヒントマス(clue)または黒マス(block)のクラス名があるか判定
-        if (cell.classList.contains("clue") || cell.classList.contains("block")) {
+      // // 🌟 もしマス（.cell）がクリックされた場合の処理
+      // if (cell) {
+      //   // 黒マス、またはヒントマスをクリックした場合は、ポップアップを閉じずに何もせず終了する（クローズ処理除外）
+      //   // ※ヒントマス(clue)または黒マス(block)のクラス名があるか判定
+      //   if (cell.classList.contains("clue") || cell.classList.contains("block")) {
+      //     return;
+      //   }
+
+      //   // 選択中のセルをクリックした場合も何もしない
+      //   if (cell == selectedCell) return;
+
+      //   // 🌟 【新規追加】既存のガード句（return）をすべてすり抜けた ＝「新しく選択すべき通常セル」
+      //   // ポップアップを閉じる前に、次のセルを選択する処理を実行します！
+      //   selectCell(cell, e);
+      //   return; // 通常セル選択の処理が完了したため、ここでイベント処理を終了
+      // }
+
+      // 🌟 【条件A】クリックされたのが「回答を入れる通常のマス」だった場合
+      // （※ clue クラスも block クラスも持たないマス）
+      if (cell && !cell.classList.contains("clue") && !cell.classList.contains("block")) {
+        
+        // 💡 すでに選択中のセルをもう一度クリックした場合は、ポップアップを閉じる
+        if (cell === selectedCell) {
+          closePopup(); 
+          selectedCell = null;
           return;
         }
 
-        // 選択中のセルをクリックした場合も何もしない
-        if (cell == selectedCell) return;
-
-        // 🌟 【新規追加】既存のガード句（return）をすべてすり抜けた ＝「新しく選択すべき通常セル」
-        // ポップアップを閉じる前に、次のセルを選択する処理を実行します！
+        // 新しい通常マスがクリックされた場合は、そのマスを選択して処理を終了
         selectCell(cell, e);
-        return; // 通常セル選択の処理が完了したため、ここでイベント処理を終了
+        return;
       }
 
+      // 🌟 【条件B】「回答を入れる通常のマス以外」をクリックした場合
+      // （※盤面の完全な外側、背景、ボタン、または黒マス・ヒントマスをクリックした場合）
+      // 綺麗にポップアップを閉じて、選択状態をクリアします。
       // 🌟 盤面以外の「完全な外側」をクリックした場合は、既存通りポップアップを閉じて選択をクリア
       closePopup(); 
       selectedCell = null;
@@ -1162,39 +1186,39 @@
     //------------------------------------------------
     //  hintポップアップ表示    
     function openHintPopup() {
-        document.getElementById("hintPopup").style.display = "block";
+      document.getElementById("hintPopup").style.display = "block";
     }
 
 
     //------------------------------------------------
     //  hintポップアップ非表示  
     function closeHintPopup() {
-        document.getElementById("hintPopup").style.display = "none";
+      document.getElementById("hintPopup").style.display = "none";
     }
     
     //------------------------------------------------
     //  hintの数列算出  
     function getCombinations(targetSum, length) {
-        const results = [];
+      const results = [];
 
-        function dfs(start, path, sum) {
-            if (path.length === length) {
-                if (sum === targetSum) {
-                    results.push([...path]);
-                }
-                return;
-            }
-
-            for (let i = start; i <= 9; i++) {
-                if (sum + i > targetSum) break;
-
-                path.push(i);
-                dfs(i + 1, path, sum + i);
-                path.pop();
-            }
+      function dfs(start, path, sum) {
+        if (path.length === length) {
+          if (sum === targetSum) {
+            results.push([...path]);
+          }
+          return;
         }
-        dfs(1, [], 0);
-        return results;
+
+        for (let i = start; i <= 9; i++) {
+          if (sum + i > targetSum) break;
+
+          path.push(i);
+          dfs(i + 1, path, sum + i);
+          path.pop();
+        }
+      }
+      dfs(1, [], 0);
+      return results;
     }
     
     //------------------------------------------------
@@ -1224,18 +1248,18 @@
         }
 
         results.sort((a, b) => {
-            for (let i = a.length - 1; i >= 0; i--) {
-                if (a[i] !== b[i]) {
-                    return b[i] - a[i]; // 降順
-                }
+          for (let i = a.length - 1; i >= 0; i--) {
+            if (a[i] !== b[i]) {
+              return b[i] - a[i]; // 降順
             }
-            return 0;
+          }
+          return 0;
         });
 
         results.forEach(r => {
-            const div = document.createElement("div");
-            div.textContent = r.slice().reverse().join(" ");
-            container.appendChild(div);
+          const div = document.createElement("div");
+          div.textContent = r.slice().reverse().join(" ");
+          container.appendChild(div);
         });
     }
 
@@ -1630,7 +1654,7 @@
             cell.classList.add('confirmed');
             cell.querySelectorAll('span').forEach(span => {
               if (!span.classList.contains('gray')) {
-                  span.classList.add('confirmed-text');
+                span.classList.add('confirmed-text');
               }
             });
           }
@@ -1863,13 +1887,15 @@
     function updateDropdownUI() {
       // const select = document.getElementById("stage-select"); // HTML側の<select>要素
       const select = document.getElementById("puzzleSelect"); // HTML側の<select>要素
-     select.innerHTML = ""; // クリア
+      if (!select) return; // 安全対策
+
+      select.innerHTML = ""; // クリア
 
       stageIdList.forEach(id => {
-          const option = document.createElement("option");
-          option.value = id;
-          option.textContent = `${id}`;
-          select.appendChild(option);
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = `${id}`;
+        select.appendChild(option);
       });
       
       // // ユーザーがドロップダウンを変更したときのイベント
@@ -1890,31 +1916,39 @@
 
       // マス数（8～5）
       for (let i = 8; i >= 4; i--) {
-          let opt = document.createElement("option");
-          opt.value = i;
-          opt.textContent = i;
-          lengthSelect.appendChild(opt);
+        let opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = i;
+        lengthSelect.appendChild(opt);
       }
 
       // 合計（仮：44～15）
       for (let i = 44; i >= 10; i--) {
-          let opt = document.createElement("option");
-          opt.value = i;
-          opt.textContent = i;
-          sumSelect.appendChild(opt);
+        let opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = i;
+        sumSelect.appendChild(opt);
       }
-
 
       const hint = document.querySelector(".hint-content");
 
       let startY = 0;
       let startTop = 0;
       let isDragging = false;
+      let currentTransformY = 0; 
 
       hint.addEventListener("touchstart", (e) => {
         isDragging = true;
+
+        // 🌟 タッチ開始時は、まだ移動直後フラグを false にしておく
+        isHintJustDragged = false; 
+
         startY = e.touches[0].clientY;
-      select.value = String(selectedPuzzleNo);
+
+        const select = document.getElementById('puzzleSelect');
+        if (select) {
+          select.value = String(selectedPuzzleNo);
+        }
         // GPUモード対応
         // 位置計算方法の改善
         // 【劇的改善】getBoundingClientRect()の代わりに、現在のtransformの値を安全に取得する
@@ -1929,6 +1963,9 @@
 
       hint.addEventListener("touchmove", (e) => {
         if (!isDragging) return;
+
+        // 🌟 指が動いてドラッグが発生した瞬間に、移動したという目印（フラグ）を立てる
+        isHintJustDragged = true;
 
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - startY;
@@ -1955,6 +1992,13 @@
 
       hint.addEventListener("touchend", () => {
         isDragging = false;
+        // 🌟 指が離れたあと、遅れてやってくる「click」イベントを確実に捕まえてガードするため、
+        // 150ミリ秒後に自動でフラグを下ろすタイマーを仕込みます
+        setTimeout(() => {
+          isHintJustDragged = false;
+        }, 150);
+
+
       });
     }
     
@@ -1985,82 +2029,82 @@
     //------------------------------------------------
     //  ファイル読み込みボタン押下時の処理
     function handleFileSelect(fileText) {
-        let globalOffset = 0;
-        stageIdList = []; // 初期化
+      let globalOffset = 0;
+      stageIdList = []; // 初期化
 
-        // テキストを1行ずつに分割する
-        const lines = fileText.split(/\r?\n/);
+      // テキストを1行ずつに分割する
+      const lines = fileText.split(/\r?\n/);
 
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
 
-            // 空行や、ファイルの最初と最後のカッコ「{」「}」だけの行はスキップ
-            if (!line || line === "{" || line === "}") continue;
+        // 空行や、ファイルの最初と最後のカッコ「{」「}」だけの行はスキップ
+        if (!line || line === "{" || line === "}") continue;
 
-            // 行末のカンマ「,」を削除して、有効なJSONオブジェクトの形にする
-            if (line.endsWith(",")) {
-                line = line.slice(0, -1);
-            }
-
-            // 1行分のJSON（例： "1": {"width": 13, "height": 10, ...} ）をパースするために
-            // 前後に仮のカッコをつけて完全なJSON形式にする
-            let parsedLine = null;
-            try {
-                parsedLine = JSON.parse("{" + line + "}");
-            } catch (e) {
-                console.error("行のパースに失敗しました（スキップします）:", line);
-                continue;
-            }
-
-            // パースしたオブジェクトから、問題番号（キー）を取得
-            const stageKeys = Object.keys(parsedLine);
-            if (stageKeys.length === 0) continue;
-            
-            const stageKey = stageKeys[0]; // 例: "1"
-            let stage = parsedLine[stageKey]; // その問題のデータ
-            let specialCellCount = stage.cells.length;
-
-            // 🌟 1. ドロップダウン用の問題番号を記録
-            stageIdList.push(stageKey);
-
-            // 🌟 2. メタデータを記録
-            stageMetadata[stageKey] = {
-                width: stage.width,
-                height: stage.height,
-                start: globalOffset,
-                length: specialCellCount
-            };
-
-            // 🌟 3. 特殊マスを1つずつ32bit整数に圧縮して型付き配列に格納
-            for (let c = 0; c < specialCellCount; c++) {
-                let cell = stage.cells[c];
-                let compressedInt = 0;
-
-                compressedInt |= (cell.x << SHIFT_X);
-                compressedInt |= (cell.y << SHIFT_Y);
-
-                let type = (cell.type === "clue") ? TYPE_CLUE : TYPE_BLOCK;
-                compressedInt |= (type << SHIFT_TYPE);
-
-                if (cell.across !== undefined) compressedInt |= (cell.across << SHIFT_ACROSS);
-                if (cell.down !== undefined)    compressedInt |= (cell.down << SHIFT_DOWN);
-
-                // 巨大な型付き配列に直接書き込む
-                allStagesData[globalOffset + c] = compressedInt;
-            }
-
-            // 次の問題のためにオフセットを進める
-            globalOffset += specialCellCount;
-
-            // 【最重要】この行のパースオブジェクトを即座に完全破棄
-            // ループのたびにメモリが完全にクリーンアップされます
-            parsedLine = null;
-            stage = null;
+        // 行末のカンマ「,」を削除して、有効なJSONオブジェクトの形にする
+        if (line.endsWith(",")) {
+          line = line.slice(0, -1);
         }
 
-        // 🌟 4. 全問題の読み込み完了後、UIを更新
-        updateDropdownUI(); // ドロップダウンリストを生成
-        // displayStage(stageIdList[0]); // 1問目の盤面を表示
+        // 1行分のJSON（例： "1": {"width": 13, "height": 10, ...} ）をパースするために
+        // 前後に仮のカッコをつけて完全なJSON形式にする
+        let parsedLine = null;
+        try {
+          parsedLine = JSON.parse("{" + line + "}");
+        } catch (e) {
+          console.error("行のパースに失敗しました（スキップします）:", line);
+          continue;
+        }
+
+        // パースしたオブジェクトから、問題番号（キー）を取得
+        const stageKeys = Object.keys(parsedLine);
+        if (stageKeys.length === 0) continue;
+        
+        const stageKey = stageKeys[0]; // 例: "1"
+        let stage = parsedLine[stageKey]; // その問題のデータ
+        let specialCellCount = stage.cells.length;
+
+        // 🌟 1. ドロップダウン用の問題番号を記録
+        stageIdList.push(stageKey);
+
+        // 🌟 2. メタデータを記録
+        stageMetadata[stageKey] = {
+          width: stage.width,
+          height: stage.height,
+          start: globalOffset,
+          length: specialCellCount
+        };
+
+        // 🌟 3. 特殊マスを1つずつ32bit整数に圧縮して型付き配列に格納
+        for (let c = 0; c < specialCellCount; c++) {
+          let cell = stage.cells[c];
+          let compressedInt = 0;
+
+          compressedInt |= (cell.x << SHIFT_X);
+          compressedInt |= (cell.y << SHIFT_Y);
+
+          let type = (cell.type === "clue") ? TYPE_CLUE : TYPE_BLOCK;
+          compressedInt |= (type << SHIFT_TYPE);
+
+          if (cell.across !== undefined) compressedInt |= (cell.across << SHIFT_ACROSS);
+          if (cell.down !== undefined)    compressedInt |= (cell.down << SHIFT_DOWN);
+
+          // 巨大な型付き配列に直接書き込む
+          allStagesData[globalOffset + c] = compressedInt;
+        }
+
+        // 次の問題のためにオフセットを進める
+        globalOffset += specialCellCount;
+
+        // 【最重要】この行のパースオブジェクトを即座に完全破棄
+        // ループのたびにメモリが完全にクリーンアップされます
+        parsedLine = null;
+        stage = null;
+      }
+
+      // 🌟 4. 全問題の読み込み完了後、UIを更新
+      updateDropdownUI(); // ドロップダウンリストを生成
+      // displayStage(stageIdList[0]); // 1問目の盤面を表示
     }
 
 
