@@ -296,7 +296,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.10</div>
+  <div class="version">v8.11</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -623,22 +623,94 @@
       updatePopupNumbers(div);
 
       
-      // 位置は更新するが消さない
-      let left = event.clientX;
-      let top = event.clientY - popupHeight;
+      // // 位置は更新するが消さない
+      // let left = event.clientX;
+      // let top = event.clientY - popupHeight;
 
-      if (left + popupWidth > window.innerWidth) {
-        left = window.innerWidth - popupWidth - 10;
-      }
+      // if (left + popupWidth > window.innerWidth) {
+      //   left = window.innerWidth - popupWidth - 10;
+      // }
     
 
-      if (top < 0) {
-        top = 10;
+      // if (top < 0) {
+      //   top = 10;
+      // }
+      // popup.style.transform = ""; 
+      // popup.style.left = left + "px";
+      // popup.style.top = top + "px";
+
+      
+      // ========================================================
+      // 【伸縮自在・通常2行・右端4〜6行版】ここから最後まで置き換え
+      // ========================================================
+      
+      // ✨【ここが最大のポイントです！】
+      // 固定値（200px）を廃止し、通常時は横に大きく広がって「2行」で表示されるようにします。
+      popup.style.width = "auto"; 
+      popup.style.minWidth = "auto"; 
+
+      // 1. まず、横に広がりきった状態（通常2行モード）での本来のサイズを測定します
+      let currentPopupWidth = popup.offsetWidth || popupWidth;
+      let currentPopupHeight = popup.offsetHeight || popupHeight;
+
+      // マス（div）の現在の正確な位置とサイズを取得
+      const cellRect = div.getBoundingClientRect();
+
+      // ドキュメント全体の正確なスクロール量を安全に取得
+      const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+      const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+      // ページ全体（絶対座標）における、現在のマスの正確なxy座標を計算
+      const cellX = cellRect.left + scrollX;
+      const cellY = cellRect.top + scrollY;
+
+      // 拡大（ズーム）されている時の、目に見えている本当の画面幅とスクロール開始位置を取得
+      const viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+      const viewportLeft = window.visualViewport ? window.visualViewport.offsetLeft : scrollX;
+
+      // マスの位置をベースにして、その近く（上側）に配置する基本位置を計算
+      let left = cellX + (cellRect.width / 2) - (currentPopupWidth / 2);
+      let top = cellY - currentPopupHeight - 10; 
+
+      // 【画面外へのはみ出し防止ガード（自動変形対応版）】
+      // 1. 今目に見えている画面の「左端」からはみ出る場合
+      if (left < viewportLeft + 10) {
+        left = viewportLeft + 10;
       }
+      
+      // 2. 今目に見えている画面の「右端」からはみ出る場合
+      if (left + currentPopupWidth > viewportLeft + viewportWidth - 10) {
+        // 💡【右の壁にぶつかった瞬間！】
+        // ここでポップアップの横幅を少し狭める（例えば160px〜180px程度に制限する）ことで、
+        // 横に並んでいたボタンが下に押し出され、自動的に「4〜6行」のコンパクトな形に変形させます。
+        // ※縦長2列（細長すぎ）にならない絶妙なサイズ（160px）に指定します。
+        const compressedWidth = 160; 
+        popup.style.width = compressedWidth + "px";
+        
+        // 形が変わったので、もう一度最新のサイズ（縦が伸びた分）を再測定します
+        currentPopupWidth = popup.offsetWidth;
+        currentPopupHeight = popup.offsetHeight;
+        
+        // 変形した新しいサイズを基準に、右端（10px余白）にぴったり収まる位置を再計算
+        left = viewportLeft + viewportWidth - currentPopupWidth - 10;
+        top = cellY - currentPopupHeight - 10; // 縦に伸びた分、上に位置を調整
+      }
+
+      // 3. 上側にはみ出て見えなくなる場合（一番上のマスなどをタップした時）
+      if (top < scrollY + 10) {
+        top = cellY + cellRect.height + 10; // マスの「下側」へひっくり返す
+        
+        if (top < scrollY + 10) {
+          top = scrollY + 10;
+        }
+      }
+
+      // 確定した安全な位置をポップアップに適用
       popup.style.transform = ""; 
+      popup.style.position = "absolute"; 
       popup.style.left = left + "px";
       popup.style.top = top + "px";
-
+    
     }
 
     
@@ -972,8 +1044,14 @@
           return;
         }
 
-        // 数値クリック時の処理
-        toggleGray(e);    
+        // // 数値クリック時の処理
+        // toggleGray(e);    
+
+        // 【PC版】ポップアップを使用していない通常クリック時は、グレー反転（既存のまま）
+        // 【スマホ版】ポップアップ使用時（usePopup=true）は、このグレー反転処理をスキップして進みます
+        if (!usePopup) {
+          toggleGray(e);    
+        }
       }
 
       //マスが選択された場合に実行
@@ -1149,12 +1227,12 @@
       // （※ clue クラスも block クラスも持たないマス）
       if (cell && !cell.classList.contains("clue") && !cell.classList.contains("block")) {
         
-        // 💡 すでに選択中のセルをもう一度クリックした場合は、ポップアップを閉じる
-        if (cell === selectedCell) {
-          closePopup(); 
-          selectedCell = null;
-          return;
-        }
+        // // 💡 すでに選択中のセルをもう一度クリックした場合は、ポップアップを閉じる
+        // if (cell === selectedCell) {
+        //   closePopup(); 
+        //   selectedCell = null;
+        //   return;
+        // }
 
         // 新しい通常マスがクリックされた場合は、そのマスを選択して処理を終了
         selectCell(cell, e);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "KakuroTime-v8.10";
+const CACHE_NAME = "KakuroTime-v8.11";
 
 const urlsToCache = [
   "./",
