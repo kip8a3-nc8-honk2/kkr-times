@@ -296,7 +296,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.20</div>
+  <div class="version">v8.21</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -972,8 +972,12 @@
           return;
         }
 
-        // 数値クリック時の処理
-        toggleGray(e);    
+        // // 数値クリック時の処理
+        // toggleGray(e);    
+        
+        if (!usePopup) {
+          toggleGray(e);    
+        }
       }
 
       //マスが選択された場合に実行
@@ -1065,47 +1069,6 @@
 
     //------------------------------------------------  
     //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
-    // document.addEventListener("click", function(e) {
-   
-    //   // HTMLドキュメント内の要素を検索し、クラス名が.popupの最初の要素(Element)を取得
-    //   const popup = document.querySelector(".popup");
-    //   const hintPopup = document.querySelector(".hint-content");
-      
-    //   if (!usePopup) return;
-
-    //   if (!popup) return;
-
-    //   // console.log("bef popupの中をクリックした場合");
-    //   // popupの中をクリックした場合は何もしない
-    //   // if (popup.contains(e.target)) return;
-
-    //   // popupの中、または、ヒントポップアップをクリックした場合は何もしない
-    //   if ((popup.contains(e.target)) || (hintPopup.contains(e.target))) {
-    //     return;
-    //   }
-
-    //   // console.log("bef 盤面の通常セルをクリックした場合");
-    //   // 盤面の通常セルをクリックした場合も何もしない
-    //   if (e.target.classList.contains("cell")) {
-    //     // 黒マスをクリックする場合は除外（クローズ処理）
-    //     // 黒マス＝classListに"cell"と"clue"が設定されている
-    //     if (!e.target.classList.contains("clue")) return;
-    //   }
-      
-    //   // 選択中のセルをクリックした場合も何もしない
-    //   // if (e.target.classList.contains("cell")) return;
-    //   // 選択中のセルをクリックした場合も何もしない
-    //   const cell = e.target.closest('.cell');
-    //   if (cell == selectedCell) return;
-
-    //   closePopup(); 
-      
-    //   selectedCell = null;
-
-    // });
-
-    //------------------------------------------------  
-    //　webページ全体（document)のどこをクリックしても実行する処理イベントリスナー   
     document.addEventListener("click", function(e) {
    
 
@@ -1128,33 +1091,17 @@
       // 🌟 【最適入れ替え】クリックされた要素からマス（.cell）を特定する
       const cell = e.target.closest('.cell');
 
-      // // 🌟 もしマス（.cell）がクリックされた場合の処理
-      // if (cell) {
-      //   // 黒マス、またはヒントマスをクリックした場合は、ポップアップを閉じずに何もせず終了する（クローズ処理除外）
-      //   // ※ヒントマス(clue)または黒マス(block)のクラス名があるか判定
-      //   if (cell.classList.contains("clue") || cell.classList.contains("block")) {
-      //     return;
-      //   }
-
-      //   // 選択中のセルをクリックした場合も何もしない
-      //   if (cell == selectedCell) return;
-
-      //   // 🌟 【新規追加】既存のガード句（return）をすべてすり抜けた ＝「新しく選択すべき通常セル」
-      //   // ポップアップを閉じる前に、次のセルを選択する処理を実行します！
-      //   selectCell(cell, e);
-      //   return; // 通常セル選択の処理が完了したため、ここでイベント処理を終了
-      // }
 
       // 🌟 【条件A】クリックされたのが「回答を入れる通常のマス」だった場合
       // （※ clue クラスも block クラスも持たないマス）
       if (cell && !cell.classList.contains("clue") && !cell.classList.contains("block")) {
         
-        // 💡 すでに選択中のセルをもう一度クリックした場合は、ポップアップを閉じる
-        if (cell === selectedCell) {
-          closePopup(); 
-          selectedCell = null;
-          return;
-        }
+        // // 💡 すでに選択中のセルをもう一度クリックした場合は、ポップアップを閉じる
+        // if (cell === selectedCell) {
+        //   closePopup(); 
+        //   selectedCell = null;
+        //   return;
+        // }
 
         // 新しい通常マスがクリックされた場合は、そのマスを選択して処理を終了
         selectCell(cell, e);
@@ -1680,93 +1627,7 @@
       createplayboard(selectedPuzzleNo);
     }
 
-
-    //------------------------------------------------ 
-    // Create Board Mesh X x Y
-    // function createplayboard(puzzleNo) {
-
-
-    //   // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
-    //   // 【改善】キープしておいた生テキスト（文字列）から、150問全部ではなく、「選ばれた1問分の文字列だけ」をピンポイントでパース！
-    //   // ※一時的な変数なので、この関数が終わるか、次の問題を選べば古いものは自動的にメモリから消去（GC）されます
-    //   const puzzle = JSON.parse(puzzleTextMap[puzzleNo]);
-    //   const cells = puzzle["cells"];
-
-    //   boardWidth = puzzle["width"];
-    //   boardHeight = puzzle["height"];
-
-    //   // 確仮ボタン追加
-    //   window.inputMode = "candidate";   
-
-    //   isAssumeMode = false;
-    //   if (usePopup) {
-    //     currentMode = "input";
-    //     selectedAssume = null;
-    //     setMode(currentMode);
-    //     updateModeButtons();
-    //   }
-      
-    //   const board = document.getElementById('grid');
-    //   board.innerHTML = ''; // ★ 既存の盤面をクリア
-
-    //   for (let y = 0; y < boardHeight; y++) {
-    //     for (let x = 0; x < boardWidth; x++) {
-
-    //       const div = document.createElement("div");
-    //       div.className = "cell";
-    //       div.dataset.x = x;
-    //       div.dataset.y = y;
-
-    //       // クリック処理の登録：
-    //       // 　クリックイベントが発生したら、selectCell関数を実行するように予め登録しておく
-    //       // 　実際にクリックが発生したら、直接selectCell関数が実行される。
-    //       div.onclick = (e) => selectCell(div, e);  
-    //       // div.ondblclick = (e) => toggleGray(e);    // ダブルクリック処理
-    //       grid.appendChild(div);
-          
-
-    //       // const key = `${x},${y}`;
-    //       const cluse = cells.find(c => c.x === x && c.y === y);
-
-    //   //    if (clues[key]) {
-    //       if (!cluse) {
-    //         // 通常の白マス
-    //         div.className = 'cell';
-    //       } else {
-    //         if (cluse["type"]) {
-    //           div.className = 'cell clue';
-              
-    //           // 横合計（右上）
-    //           if (cluse["across"] !== undefined) {
-    //             const clueRight = document.createElement('div');
-    //             clueRight.className = 'clue-right';
-    //             clueRight.textContent = cluse["across"];
-    //             div.appendChild(clueRight);
-    //             isSlash = true;
-    //           }
-
-    //           // 縦合計（左下）
-    //           if (cluse["down"] !== undefined) {
-
-    //             const clueDown = document.createElement('div');
-    //             clueDown.className = 'clue-down';
-    //             clueDown.textContent = cluse["down"];
-    //             div.appendChild(clueDown);
-    //             isSlash = true;
-    //           }
-    //           if (isSlash) {
-    //             // 斜め線
-    //             const slash = document.createElement('div');
-    //             slash.className = 'slash';
-    //             div.appendChild(slash);
-    //             isSlash = false;
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-
-    // }
+ 
     function createplayboard(puzzleNo) {
       // 🌟 1. メタデータから、選択された問題の幅・高さ・開始位置などを一瞬で取得
       const meta = stageMetadata[puzzleNo];
@@ -1870,19 +1731,6 @@
       }
     }
 
-    //------------------------------------------------
-    // パズル番号選択のためのドロップダウンリストの表示文字列を作成 
-    // function populatePuzzleDropdown() {
-    //   const select = document.getElementById('puzzleSelect');
-    //   allpuzzlekey.forEach(num => {
-    //     const option = document.createElement('option');
-    //     option.value = num;
-    //     option.textContent = `${num}`;
-    //     select.appendChild(option);
-    //   });
-
-    //    select.value = String(selectedPuzzleNo);
-    // }
 
     function updateDropdownUI() {
       // const select = document.getElementById("stage-select"); // HTML側の<select>要素
@@ -2140,51 +1988,8 @@
       localStorage.setItem("usePopup", on);
       location.reload(); 
     }
-    // console.log("usePopup:", usePopup);
-
-    // 初期化
-
-    // //HTMLの部品(ファイルの読み込みボタン（jsonFileInpu)）を取得
-    // const fileInput = document.getElementById("jsonFileInput");
-
-    // //　ファイルを選択したら実行
-    // fileInput.addEventListener("change", async (event) => {
-
-    //   // 選択ファイルの取得
-    //   const file = event.target.files[0];
-
-    //   if (!file) return;
-
-    //   try {
-    //     // ファイル内容読み込み
-    //     const text = await file.text();
-
-    //     // 起動時に1回だけ全体をパース（これは一時的な変数なので後で消えます）  
-    //     const tempAllPuzzle = JSON.parse(text);
-    //     numallpuzzle = Object.keys(tempAllPuzzle).length;
-    //     allpuzzlekey = Object.keys(tempAllPuzzle);
-
-    //     // 【ここがポイント】150問のデータを、それぞれ「文字列（JSON）」に再変換してバラバラに保管
-    //     // オブジェクトで持つより、ただの文字列として持つ方が圧倒的にメモリが軽くなる
-    //     allpuzzlekey.forEach(key => {
-    //       puzzleTextMap[key] = JSON.stringify(tempAllPuzzle[key]);
-    //     });
-
-    //     // 最初の問題を設定
-    //     puzzle = tempAllPuzzle[allpuzzlekey[0]];
-
-
-    //     // 初期化
-    //     initialize();   
-    //     // populatePuzzleDropdown();     
-
-    //   } catch (err) {
-    //     console.error(err);
-    //   }
-    // });
-
-
-        // HTMLの部品(ファイルの読み込みボタン（jsonFileInput)）を取得
+    
+    // HTMLの部品(ファイルの読み込みボタン（jsonFileInput)）を取得
     const fileInput = document.getElementById("jsonFileInput");
 
     // ファイルを選択したら実行（async を忘れずにつけておきます）
