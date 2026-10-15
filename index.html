@@ -296,7 +296,7 @@
 </head>
 <body>
   <h2>Kakuro Time</h2>
-  <div class="version">v8.11</div>
+  <div class="version">v8.12</div>
   
   <div id="topControls" style="white-space: nowrap;">
 
@@ -640,16 +640,14 @@
       // popup.style.top = top + "px";
 
       
-      // ========================================================
-      // 【伸縮自在・通常2行・右端4〜6行版】ここから最後まで置き換え
+           // ========================================================
+      // 【右端引き寄せ＆はみ出し完全解消版】ここから最後まで置き換え
       // ========================================================
       
-      // ✨【ここが最大のポイントです！】
-      // 固定値（200px）を廃止し、通常時は横に大きく広がって「2行」で表示されるようにします。
       popup.style.width = "auto"; 
       popup.style.minWidth = "auto"; 
 
-      // 1. まず、横に広がりきった状態（通常2行モード）での本来のサイズを測定します
+      // 1. 通常時のサイズを測定
       let currentPopupWidth = popup.offsetWidth || popupWidth;
       let currentPopupHeight = popup.offsetHeight || popupHeight;
 
@@ -672,7 +670,7 @@
       let left = cellX + (cellRect.width / 2) - (currentPopupWidth / 2);
       let top = cellY - currentPopupHeight - 10; 
 
-      // 【画面外へのはみ出し防止ガード（自動変形対応版）】
+      // 【画面外へのはみ出し防止ガード】
       // 1. 今目に見えている画面の「左端」からはみ出る場合
       if (left < viewportLeft + 10) {
         left = viewportLeft + 10;
@@ -681,19 +679,18 @@
       // 2. 今目に見えている画面の「右端」からはみ出る場合
       if (left + currentPopupWidth > viewportLeft + viewportWidth - 10) {
         // 💡【右の壁にぶつかった瞬間！】
-        // ここでポップアップの横幅を少し狭める（例えば160px〜180px程度に制限する）ことで、
-        // 横に並んでいたボタンが下に押し出され、自動的に「4〜6行」のコンパクトな形に変形させます。
-        // ※縦長2列（細長すぎ）にならない絶妙なサイズ（160px）に指定します。
+        // ポップアップの横幅を160pxに制限して、自動的に4〜6行に変形させます
         const compressedWidth = 160; 
         popup.style.width = compressedWidth + "px";
         
-        // 形が変わったので、もう一度最新のサイズ（縦が伸びた分）を再測定します
-        currentPopupWidth = popup.offsetWidth;
+        // 変形した後の新しい高さを再測定
         currentPopupHeight = popup.offsetHeight;
         
-        // 変形した新しいサイズを基準に、右端（10px余白）にぴったり収まる位置を再計算
-        left = viewportLeft + viewportWidth - currentPopupWidth - 10;
-        top = cellY - currentPopupHeight - 10; // 縦に伸びた分、上に位置を調整
+        // ✨【ここが修正ポイントです！】
+        // 左に寄りすぎるのを防ぐため、ポップアップの「右端」を、画面の目に見えている右端の壁（10px手前）にぴったり合わせます。
+        // これにより、右端のマスから離れることなく、最も右側に引き寄せられた位置に表示されます。
+        left = viewportLeft + viewportWidth - compressedWidth - 10;
+        top = cellY - currentPopupHeight - 10; 
       }
 
       // 3. 上側にはみ出て見えなくなる場合（一番上のマスなどをタップした時）
